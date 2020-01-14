@@ -1,11 +1,20 @@
 #include "winsock2.h"
 #include "addr.h"
-#include "userlist.h"
 #include "entity.h"
 #include "world.h"
 #include <thread>
 
 #define MAX_BUFFER ((2 << 15) - 1)
+
+#define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
+
+#define SLEEP(last_t, freq) \
+    double t = glfwGetTime(); \
+    double dt = (t - last_t); \
+    double sleep_s = (1 / freq) - dt; \
+    long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
+    if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
+    last_t = t;
 
 /*
     Entity packet structure
@@ -27,7 +36,8 @@
     -------------------------------
 */
 
-static const int PACKETS_FREQ = 20;
+static const double PACKETS_FREQ = 1.0;
+static const double TICK_FREQ = 1.0;
 
 static World world = { 0 };
 
@@ -39,25 +49,25 @@ void _main_data()
     SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
     {
-        fprintf(stderr, "Failed to create socket in %s\n", __func__);
+        SOCKET_ERR_MSG("Failed to create socket");
         return;
     }
 
-    struct sockaddr_in addr = CLIENT_DATA_ADDR;
+    sockaddr_in addr = SERVER_DATA_ADDR;
 
-    if (bind(sock, (struct sockaddr*) &addr, sizeof(struct sockaddr)) == SOCKET_ERROR)
+    if (bind(sock, (sockaddr*) &addr, sizeof(sockaddr)) == SOCKET_ERROR)
     {
-        fprintf(stderr, "Failed to bind socket in %s\n", __func__);
+        SOCKET_ERR_MSG("Failed to bind socket");
         closesocket(sock);
         return;
     }
 
     DynamicEntity_e::set_socket(sock);
 
+    double last_t = glfwGetTime();
+
     while (1)
     {
-        double last_t = glfwGetTime();
-    
         for (int k = 0; k < world.num_players; k++)
         {
             Player* p = world.players[k];
@@ -80,58 +90,53 @@ void _main_data()
             }
 
             DynamicEntity_e::end();
-
-            double t = glfwGetTime();
-            double dt = t - last_t;
-            double sleep_t = (1 / PACKETS_FREQ) - dt;
-            if (sleep_t > 0.0)
-            {
-                Sleep((DWORD) (sleep_t * 1000));
-            }
-            last_t = t;
         }        
+        SLEEP(last_t, PACKETS_FREQ);
+        printf("Sending a packet\n");
     }
 }
 
 /* Adds new players to world for new connections */
 void _main_auth()
 {
-    SOCKET sock;
-    if (sock = socket(sock, AF_INET, SOCK_STREAM) == INVALID_SOCKET)
+    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET)
     {
-        fprintf(stderr, "Failed to create socket in %s\n", __func__);
-        exit(1);
+        SOCKET_ERR_MSG("Failed to create socket");
+        return;
     }
 
-    struct sockaddr_in name = SERVER_AUTH_ADDR;
+    sockaddr_in name = SERVER_AUTH_ADDR;
 
-    if (bind(sock, (struct sockaddr*) &name, sizeof(struct sockaddr)) == SOCKET_ERROR)
+    if (bind(sock, (sockaddr*) &name, sizeof(sockaddr)) == SOCKET_ERROR)
     {
-        fprintf(stderr, "Failed to bind socket in %s\n", __func__);
+        SOCKET_ERR_MSG("Failed to bind socket");
         closesocket(sock);
-        exit(1);
+        return;
     }
 
     if (listen(sock, 1) == SOCKET_ERROR)
     {
-        fprintf(stderr, "Failed to listen to socket in %s\n", __func__);
+        SOCKET_ERR_MSG("Failed to listen to socket");
         closesocket(sock);
-        exit(1);
+        return;
     }
 
     while (1)
     {
-        SOCKET conn;
-
         Player* p = new Player();
-        int addrlen;
+        
+        int addrlen = sizeof(sockaddr);
+        SOCKET conn = accept(sock, (sockaddr*) &(p->addr), &addrlen);
 
-        if (accept(conn, (struct sockaddr*) &(p->addr), &addrlen) == SOCKET_ERROR)
+        if (conn == INVALID_SOCKET)
         {
-            fprintf(stderr, "Failed to accept connection in %s\n", __func__);
+            SOCKET_ERR_MSG("Failed to accept connection");
             closesocket(sock);
-            exit(1);
+            return;
         }
+
+        printf("Got a connection\n");
 
         /* Loads player + hero data from database */
         p->load_data();
@@ -147,36 +152,46 @@ void _main_input()
     SOCKET sock;
     if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
     {
-        fprintf(stderr, "Failed to create socket in %s\n", __func__);
+        SOCKET_ERR_MSG("Failed to create socket");
         return;
     }
 
-    struct sockaddr_in addr = SERVER_INPUT_ADDR;
-    if (bind(sock, (struct sockaddr*) &addr, sizeof(struct sockaddr)) == SOCKET_ERROR)
+    sockaddr_in addr = SERVER_INPUT_ADDR;
+    if (bind(sock, (sockaddr*) &addr, sizeof(sockaddr)) == SOCKET_ERROR)
     {
-        fprintf(stderr, "Failed to bind socket in %s\n", __func__);
+        SOCKET_ERR_MSG("Failed to bind socket");
         closesocket(sock);
         return;
     }
 
-    const int len = MAX_BUFFER;
     char buf[MAX_BUFFER];
 
     while (1)
     {
-        struct sockaddr_in from;
-        int fromlen;
-        if (recvfrom(sock, buf, len, 0, (struct sockaddr*) &from, &fromlen) == SOCKET_ERROR)
+        sockaddr_in from;
+        int fromlen = sizeof(sockaddr);
+        if (recvfrom(sock, buf, MAX_BUFFER, 0, (sockaddr*) &from, &fromlen) == SOCKET_ERROR)
         {
-            fprintf(stderr, "Failed to recieve data in %s\n", __func__);
+            SOCKET_ERR_MSG("Failed to recieve data");
             closesocket(sock);
             return;
         }
+
+        printf("Received input\n");
     }
 }
 
 void _main_game()
 {
+    double last_t = glfwGetTime();
+
+    while(1)
+    {
+
+        SLEEP(last_t, TICK_FREQ);
+        printf("Ticked\n");
+    }
+    
 }
 
 int main()
@@ -191,7 +206,7 @@ int main()
     std::thread auth_thread(_main_auth);
     std::thread input_thread(_main_input);
     std::thread game_thread(_main_game);
-    std::thread data_thread(_main_game);
+    std::thread data_thread(_main_data);
 
     auth_thread.join();
     input_thread.join();

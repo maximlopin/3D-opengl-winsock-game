@@ -93,3 +93,29 @@ void DroppedItem_e::consume_buffer(char* buf)
 {
     memcpy(this->pos.pos, buf, sizeof(this->pos.pos));
 }
+
+EClass Hero_e::get_eclass()
+{
+    return ECLASS_HERO;
+}
+
+EClass Monster_e::get_eclass()
+{
+    return ECLASS_MONSTER;
+}
+
+EClass DroppedItem_e::get_eclass()
+{
+    return ECLASS_DROPPED_ITEM;
+}
+
+SOCKET DynamicEntity_e::s_sock = INVALID_SOCKET;
+sockaddr_in* DynamicEntity_e:: s_address = NULL;
+
+char DynamicEntity_e::s_data_buf[MAX_BUF_SIZE] = { 0 };
+uint16_t DynamicEntity_e::s_data_len = 0;
+
+char DynamicEntity_e::s_head_buf[MAX_BUF_SIZE] = { 0 };
+uint16_t DynamicEntity_e::s_head_len = 0;
+
+uint8_t DynamicEntity_e::s_num_ents = 0;

@@ -20,8 +20,6 @@ enum EClass {
     ECLASS_LENGTH
 };
 
-typedef uint8_t EClass;
-
 /* Suffix _c means component */
 
 struct Component_c { };
