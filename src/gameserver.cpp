@@ -2,8 +2,9 @@
 #include "addr.h"
 #include "entity.h"
 #include "world.h"
-#include <thread>
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #define MAX_BUFFER ((2 << 15) - 1)
 
@@ -40,6 +41,7 @@ static const double PACKETS_FREQ = 1.0;
 static const double TICK_FREQ = 1.0;
 
 static World world;
+std::mutex mx_entities;
 
 /* Iterates through players and send them entity data */
 void _main_data()
@@ -62,19 +64,21 @@ void _main_data()
         return;
     }
 
-    DynamicEntity_e::set_socket(sock);
+    Sync_s::set_socket(sock);
 
     while (true)
     {
         double t0 = glfwGetTime();
 
-        for (int k = 0; k < world.num_players; k++)
+        mx_entities.lock();
+        for (auto keyval : Player::s_players)
         {
-            Player* p = world.players[k];
+            Player* p_player = keyval.second;
+            World* p_world = p->hero.world;
 
-            DynamicEntity_e::begin(&(p->addr));
+            Sync_s::begin(&(p->addr));
 
-            for (int i = 0; i < world.num_players; i++)
+            for (Hero_e* kv : p_world->heroes)
             {
                 world.players[i]->hero.enqueue();
             }
@@ -89,8 +93,10 @@ void _main_data()
                 world.dropped_items[i]->enqueue();
             }
 
-            DynamicEntity_e::end();
+            Sync_s::end();
         }       
+        mx_entities.unlock();
+    
         SLEEP(t0, PACKETS_FREQ);
         printf("Sending a packet\n");
     }

@@ -45,10 +45,8 @@ struct Velocity_c : Component_c {
 
 struct Entity_e { };
 
-struct StaticEntity_e : Entity_e { };
-
 /*
-    Dynamic entity packet structure
+    Sync entity packet structure
 
     -------------------------------
     uint8_t |  N (number of entities)
@@ -67,7 +65,9 @@ struct StaticEntity_e : Entity_e { };
     -------------------------------
 */
 
-struct DynamicEntity_e : Entity_e {
+struct System_s {};
+
+struct Sync_s : System_s {
     virtual int fill_buffer(char*) = 0;
     virtual void consume_buffer(char*) = 0;
     void enqueue();
@@ -93,7 +93,15 @@ struct DynamicEntity_e : Entity_e {
     static uint8_t s_num_ents;
 };
 
-struct Hero_e : DynamicEntity_e {
+struct Render_s : System_s {
+    virtual void render(vec3 pos, vec3 origin) const = 0;
+};
+
+struct Tick_s : System_s {
+    virtual void tick(double dt) = 0;
+};
+
+struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
     const EClass eclass = ECLASS_HERO;
     Model_c model;
     Position_c pos;
@@ -101,9 +109,11 @@ struct Hero_e : DynamicEntity_e {
     virtual int fill_buffer(char*) override;
     virtual void consume_buffer(char*) override;
     virtual EClass get_eclass() override;
+    virtual void render(vec3 pos, vec3 origin) const override;
+    virtual void tick(double dt) override;
 };
 
-struct Monster_e : DynamicEntity_e {
+struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
     const EClass eclass = ECLASS_MONSTER;
     Model_c model;
     Position_c pos;
@@ -111,32 +121,39 @@ struct Monster_e : DynamicEntity_e {
     virtual int fill_buffer(char*) override;
     virtual void consume_buffer(char*) override;
     virtual EClass get_eclass() override;
+    virtual void render(vec3 pos, vec3 origin) const override;
+    virtual void tick(double dt) override;
 };
 
-struct DroppedItem_e : DynamicEntity_e {
+struct DroppedItem_e : Entity_e, Sync_s, Tick_s, Render_s {
     const EClass eclass = ECLASS_DROPPED_ITEM;
     Position_c pos;
     Model_c model;
     virtual int fill_buffer(char*) override;
     virtual void consume_buffer(char*) override;
     virtual EClass get_eclass() override;
+    virtual void render(vec3 pos, vec3 origin) const override;
+    virtual void tick(double dt) override;
 };
 
-struct Prop_e : StaticEntity_e {
+struct Prop_e : Entity_e, Render_s {
     const EClass eclass = ECLASS_PROP;
     Model_c model;
     Position_c pos;
+    virtual void render(vec3 pos, vec3 origin) const override;
 };
 
-struct NPC_e : StaticEntity_e {
+struct NPC_e : Entity_e, Render_s {
     const EClass eclass = ECLASS_NPC;
     Model_c model;
     Position_c pos;
+    virtual void render(vec3 pos, vec3 origin) const override;
 };
 
-struct Portal_e : StaticEntity_e {
+struct Portal_e : Entity_e, Render_s {
     const EClass eclass = ECLASS_PORTAL;
     Position_c pos;
+    virtual void render(vec3 pos, vec3 origin) const override;
 };
 
 #endif

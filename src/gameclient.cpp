@@ -4,8 +4,9 @@
 #include "addr.h"
 #include "input.h"
 #include "world.h"
-#include <thread>
 #include <iostream>
+#include <thread>
+#include <mutex>
 
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
 
@@ -18,14 +19,20 @@
 
 static const double INPUT_FREQ = 0.5;
 
+// Render all entities inside this world
 volatile static World g_world;
+static std::mutex mx_world;
+
+// Update input here
 volatile static Input g_input;
+static std::mutex mx_input;
+
+// Always need access to local hero for rendering at the right origin
 volatile static Hero_e g_hero;
+static std::mutex mx_hero;
 
-void _main_io()
+void _main_input()
 {
-
-    std::cout << "ENTERED " << __func__ << std::endl;
 
     SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
@@ -157,7 +164,7 @@ int main()
         }
     });
 
-    std::thread input_thread(_main_io);
+    std::thread input_thread(_main_input);
     std::thread data_thread(_main_data);
 
     input_thread.join();

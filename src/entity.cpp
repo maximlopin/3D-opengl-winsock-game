@@ -1,17 +1,17 @@
 #include "entity.h"
 
-void DynamicEntity_e::set_socket(SOCKET sock)
+void Sync_s::set_socket(SOCKET sock)
 {
     s_sock = sock;
 }
 
-void DynamicEntity_e::begin(sockaddr_in* addr)
+void Sync_s::begin(sockaddr_in* addr)
 {
     s_address = addr;
 }
 
 /* Must be called after enqueing data for a client */
-void DynamicEntity_e::end()
+void Sync_s::end()
 {
     if (s_num_ents > 0)
     {
@@ -19,7 +19,7 @@ void DynamicEntity_e::end()
     }
 }
 
-void DynamicEntity_e::dispatch()
+void Sync_s::dispatch()
 {
     /* Share the same buffer for all entities */
     static char buf[MAX_BUF_SIZE];
@@ -30,7 +30,7 @@ void DynamicEntity_e::dispatch()
     sendto(s_sock, buf, sizeof(s_num_ents) + s_data_len + s_head_len, 0, (sockaddr*) s_address, sizeof(sockaddr));
 }
 
-void DynamicEntity_e::enqueue()
+void Sync_s::enqueue()
 {
     /* Share the same buffer for all entities */
     static char buf[MAX_BUF_SIZE];
@@ -109,13 +109,24 @@ EClass DroppedItem_e::get_eclass()
     return ECLASS_DROPPED_ITEM;
 }
 
-SOCKET DynamicEntity_e::s_sock = INVALID_SOCKET;
-sockaddr_in* DynamicEntity_e:: s_address = NULL;
+SOCKET Sync_s::s_sock = INVALID_SOCKET;
+sockaddr_in* Sync_s:: s_address = NULL;
 
-char DynamicEntity_e::s_data_buf[MAX_BUF_SIZE] = { 0 };
-uint16_t DynamicEntity_e::s_data_len = 0;
+char Sync_s::s_data_buf[MAX_BUF_SIZE] = { 0 };
+uint16_t Sync_s::s_data_len = 0;
 
-char DynamicEntity_e::s_head_buf[MAX_BUF_SIZE] = { 0 };
-uint16_t DynamicEntity_e::s_head_len = 0;
+char Sync_s::s_head_buf[MAX_BUF_SIZE] = { 0 };
+uint16_t Sync_s::s_head_len = 0;
 
-uint8_t DynamicEntity_e::s_num_ents = 0;
+uint8_t Sync_s::s_num_ents = 0;
+
+
+void Hero_e::tick(double dt)
+{
+
+}
+
+void Hero_e::render(vec3 pos, vec3 origin) const
+{
+    
+}

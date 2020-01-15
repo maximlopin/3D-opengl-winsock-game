@@ -26,8 +26,6 @@ void World::del_player(sockaddr_in* addr)
             this->num_players--;
         }
     }
-    
-    
 }
 
 Player::Player(sockaddr_in addr)
