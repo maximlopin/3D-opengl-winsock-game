@@ -37,8 +37,8 @@ struct Position_c : Component_c {
 
 struct Velocity_c : Component_c {
     vec2 vel;
-    float velmin;
-    float velmax;
+    float min;
+    float max;
 };
 
 /* Suffix _e means entity */

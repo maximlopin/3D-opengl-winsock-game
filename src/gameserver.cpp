@@ -3,18 +3,18 @@
 #include "entity.h"
 #include "world.h"
 #include <thread>
+#include <iostream>
 
 #define MAX_BUFFER ((2 << 15) - 1)
 
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
 
-#define SLEEP(last_t, freq) \
-    double t = glfwGetTime(); \
-    double dt = (t - last_t); \
-    double sleep_s = (1 / freq) - dt; \
-    long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
-    if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
-    last_t = t;
+#define SLEEP(t0, freq) \
+        double t1 = glfwGetTime(); \
+        double dt = (t1 - t0); \
+        double sleep_s = (1 / freq) - dt; \
+        long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
+        if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
 
 /*
     Entity packet structure
@@ -39,7 +39,7 @@
 static const double PACKETS_FREQ = 1.0;
 static const double TICK_FREQ = 1.0;
 
-static World world = { 0 };
+static World world;
 
 /* Iterates through players and send them entity data */
 void _main_data()
@@ -55,7 +55,7 @@ void _main_data()
 
     sockaddr_in addr = SERVER_DATA_ADDR;
 
-    if (bind(sock, (sockaddr*) &addr, sizeof(sockaddr)) == SOCKET_ERROR)
+    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to bind socket");
         closesocket(sock);
@@ -64,10 +64,10 @@ void _main_data()
 
     DynamicEntity_e::set_socket(sock);
 
-    double last_t = glfwGetTime();
-
-    while (1)
+    while (true)
     {
+        double t0 = glfwGetTime();
+
         for (int k = 0; k < world.num_players; k++)
         {
             Player* p = world.players[k];
@@ -76,7 +76,7 @@ void _main_data()
 
             for (int i = 0; i < world.num_players; i++)
             {
-                world.players[i]->hero->enqueue();
+                world.players[i]->hero.enqueue();
             }
 
             for (int i = 0; i < world.num_monsters; i++)
@@ -90,8 +90,8 @@ void _main_data()
             }
 
             DynamicEntity_e::end();
-        }        
-        SLEEP(last_t, PACKETS_FREQ);
+        }       
+        SLEEP(t0, PACKETS_FREQ);
         printf("Sending a packet\n");
     }
 }
@@ -108,7 +108,7 @@ void _main_auth()
 
     sockaddr_in name = SERVER_AUTH_ADDR;
 
-    if (bind(sock, (sockaddr*) &name, sizeof(sockaddr)) == SOCKET_ERROR)
+    if (bind(sock, reinterpret_cast<sockaddr*>(&name), sizeof(sockaddr)) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to bind socket");
         closesocket(sock);
@@ -122,12 +122,12 @@ void _main_auth()
         return;
     }
 
-    while (1)
+    while (true)
     {
-        Player* p = new Player();
-        
+        sockaddr_in addr;
         int addrlen = sizeof(sockaddr);
-        SOCKET conn = accept(sock, (sockaddr*) &(p->addr), &addrlen);
+
+        SOCKET conn = accept(sock, reinterpret_cast<sockaddr*>(&addr), &addrlen);
 
         if (conn == INVALID_SOCKET)
         {
@@ -136,11 +136,8 @@ void _main_auth()
             return;
         }
 
-        printf("Got a connection\n");
+        Player::create(addr);
 
-        /* Loads player + hero data from database */
-        p->load_data();
-        
         closesocket(conn);
     }
     closesocket(sock);
@@ -157,7 +154,7 @@ void _main_input()
     }
 
     sockaddr_in addr = SERVER_INPUT_ADDR;
-    if (bind(sock, (sockaddr*) &addr, sizeof(sockaddr)) == SOCKET_ERROR)
+    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to bind socket");
         closesocket(sock);
@@ -166,11 +163,11 @@ void _main_input()
 
     char buf[MAX_BUFFER];
 
-    while (1)
+    while (true)
     {
         sockaddr_in from;
         int fromlen = sizeof(sockaddr);
-        if (recvfrom(sock, buf, MAX_BUFFER, 0, (sockaddr*) &from, &fromlen) == SOCKET_ERROR)
+        if (recvfrom(sock, buf, MAX_BUFFER, 0, reinterpret_cast<sockaddr*>(&from), &fromlen) == SOCKET_ERROR)
         {
             SOCKET_ERR_MSG("Failed to recieve data");
             closesocket(sock);
@@ -183,12 +180,12 @@ void _main_input()
 
 void _main_game()
 {
-    double last_t = glfwGetTime();
+    
 
-    while(1)
+    while (true)
     {
-
-        SLEEP(last_t, TICK_FREQ);
+        double t0 = glfwGetTime();
+        SLEEP(t0, TICK_FREQ);
         printf("Ticked\n");
     }
     
