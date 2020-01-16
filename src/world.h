@@ -1,6 +1,7 @@
 #ifndef WORLD_H
 #define WORLD_H
 
+#include "stdlib.h"
 #include "stdint.h"
 #include "cglm/cglm.h"
 #include "entity.h"
@@ -10,6 +11,20 @@
 #include <iostream>
 
 #define MAX_SIZE 1024
+
+
+template<typename T>
+struct uid_array {
+    uid_array(int32_t init_size);
+    T& operator [](int32_t i);
+    ~uid_array();
+    void add(T& p_item);
+    void del(int32_t i);
+    int32_t size();
+private:
+    T* m_array;
+    int32_t m_size = 0;
+};
 
 /* Represents a connection AND a hero entity.
    A hero must not exist without a connection. */
@@ -25,16 +40,17 @@ struct Player {
 };
 
 struct World {
+    World();
 
     /* Sync */
-    std::unordered_map<uint32_t, Hero_e*> heroes;
-    std::unordered_map<uint32_t, Monster_e*> monsters;
-    std::unordered_map<uint32_t, DroppedItem_e*> dropped_items;
+    uid_array<Hero_e> heroes = uid_array<Hero_e>(100);
+    uid_array<Monster_e> monsters = uid_array<Monster_e>(100);
+    uid_array<DroppedItem_e> dropped_items = uid_array<DroppedItem_e>(100);
 
     /* Non-Sync */
-    Prop_e* props = NULL;
-    NPC_e* npcs = NULL;
-    Portal_e* portals = NULL;
+    uid_array<Prop_e> props = uid_array<Prop_e>(100);
+    uid_array<NPC_e> npcs = uid_array<NPC_e>(100);
+    uid_array<Portal_e> portals = uid_array<Portal_e>(100);
 };
 
 static int cmp_addr(sockaddr_in* a, sockaddr_in* b)

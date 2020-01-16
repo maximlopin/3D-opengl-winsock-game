@@ -74,23 +74,22 @@ void _main_data()
         for (auto keyval : Player::s_players)
         {
             Player* p_player = keyval.second;
-            World* p_world = p->hero.world;
 
-            Sync_s::begin(&(p->addr));
+            Sync_s::begin(&(p_player->addr));
 
-            for (Hero_e* kv : p_world->heroes)
+            for (int i = 0; i < world.heroes.size(); i++)
             {
-                world.players[i]->hero.enqueue();
+                world.heroes[i].enqueue();
             }
 
-            for (int i = 0; i < world.num_monsters; i++)
+            for (int i = 0; i < world.monsters.size(); i++)
             {
-                world.monsters[i]->enqueue();
+                world.monsters[i].enqueue();
             }
 
-            for (int i = 0; i < world.num_dropped_items; i++)
+            for (int i = 0; i < world.dropped_items.size(); i++)
             {
-                world.dropped_items[i]->enqueue();
+                world.dropped_items[i].enqueue();
             }
 
             Sync_s::end();

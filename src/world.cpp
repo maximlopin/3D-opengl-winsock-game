@@ -1,31 +1,8 @@
 #include "world.h"
 
-void World::add_player(Player* p)
+World::World()
 {
-    for (int i = 0; i < MAX_SIZE; i++)
-    {
-        if (this->players[i] == NULL)
-        {
-            this->players[i] = p;
-            this->num_players++;
-            break;
-        }
-    }
-    
-}
 
-void World::del_player(sockaddr_in* addr)
-{
-    for (int i = 0; i < MAX_SIZE; i++)
-    {
-        if (this->players[i] == NULL) continue;
-
-        if (cmp_addr(&(this->players[i]->addr), addr))
-        {
-            this->players[i] = NULL;
-            this->num_players--;
-        }
-    }
 }
 
 Player::Player(sockaddr_in addr)
@@ -73,5 +50,42 @@ void Player::tick(double dt)
     this->hero.pos.pos[1] += this->hero.vel.vel[1] * dt;
 }
 
-
 std::unordered_map<std::string, Player*> Player::s_players = {};
+
+template<typename T>
+uid_array<T>::uid_array(int32_t init_size)
+{
+    m_array = (T*) calloc(init_size, sizeof(T));
+}
+
+
+template<typename T>
+T& uid_array<T>::operator [](int32_t i)
+{
+    return m_array[i];
+}
+
+template<typename T>
+uid_array<T>::~uid_array()
+{
+    free(m_array);
+}
+
+template<typename T>
+void uid_array<T>::add(T& p_item)
+{
+    m_array[m_size++] = p_item;
+    memcpy(m_array[m_size++], p_item, sizeof(T));
+}
+
+template<typename T>
+void uid_array<T>::del(int32_t i)
+{
+    memcpy(m_array[i], m_array[--m_size], sizeof(T));
+}
+
+template<typename T>
+int32_t uid_array<T>::size()
+{
+    return m_size;
+}
