@@ -1,12 +1,13 @@
 #include "player.h"
 
-Player::Player(sockaddr_in addr)
+Player::Player(sockaddr_in addr, World& world)
 {
+    Hero_e hero();
+    m_hero_id = world.heroes.add(&hero);
     this->addr = addr;
-    this->load_data();
 }
 
-void Player::create(sockaddr_in addr)
+void Player::create(sockaddr_in addr, World& world)
 {
     std::string ip_str = std::string(inet_ntoa(addr.sin_addr));
     std::string port_str = std::to_string(ntohs(addr.sin_port));
@@ -14,7 +15,7 @@ void Player::create(sockaddr_in addr)
     
     if (s_players.find(key) == s_players.end())
     {
-        s_players[key] = new Player(addr);
+        s_players[key] = new Player(addr, world);
         std::cout << key << " connected" << std::endl;
     }
     else
@@ -23,26 +24,4 @@ void Player::create(sockaddr_in addr)
     }
 }
 
-void Player::load_data()
-{
-    /* TODO */
-}
-
-void Player::tick(double dt)
-{
-    if (this->input.RM_PRESSED)
-    {
-        this->hero.vel.vel[0] = sinf(this->input.cursor_theta) * this->hero.vel.max * this->input.RM_PRESSED;
-        this->hero.vel.vel[1] = -cosf(this->input.cursor_theta) * this->hero.vel.max * this->input.RM_PRESSED;
-    }
-    else if (this->input.LM_PRESSED)
-    {
-        this->hero.vel.vel[0] = sinf(this->input.cursor_theta) * this->hero.vel.min * this->input.LM_PRESSED;
-        this->hero.vel.vel[1] = -cosf(this->input.cursor_theta) * this->hero.vel.min * this->input.LM_PRESSED;
-    }
-
-    this->hero.pos.pos[0] += this->hero.vel.vel[0] * dt;
-    this->hero.pos.pos[1] += this->hero.vel.vel[1] * dt;
-}
-
-std::unordered_map<std::string, Player*> Player::s_players = {};
+std::unordered_map<std::string, Player*> Player::s_players = { };

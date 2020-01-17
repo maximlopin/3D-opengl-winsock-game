@@ -30,14 +30,12 @@ void Sync_s::dispatch()
     sendto(s_sock, buf, sizeof(s_num_ents) + s_data_len + s_head_len, 0, (sockaddr*) s_address, sizeof(sockaddr));
 }
 
-void Sync_s::enqueue()
+void Sync_s::enqueue(EClass eclass)
 {
     /* Share the same buffer for all entities */
     static char buf[MAX_BUF_SIZE];
 
-    EClass eclass = this->get_eclass();
-
-    int len = this->fill_buffer(buf);
+    int len = this->get_buf_len();
 
     uint16_t packet_size = (sizeof(eclass) + s_head_len) + (s_data_len + len) + sizeof(s_num_ents);
 

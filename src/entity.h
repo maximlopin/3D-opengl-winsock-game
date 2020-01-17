@@ -5,7 +5,12 @@
 #include "component.h"
 #include "system.h"
 
-struct Entity_e { };
+struct Entity_e {
+    Entity_e(int32_t id);
+    int32_t get_id();
+private:
+    const int32_t m_id;
+};
 
 struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
     Model_c model;

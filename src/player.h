@@ -7,17 +7,16 @@
 #include "winsock2.h"
 #include "input.h"
 #include "entity.h"
+#include "world.h"
 
 /* Represents a connection AND a hero entity.
    A hero must not exist without a connection. */
 struct Player {
-    Player(sockaddr_in addr);
+    Player(sockaddr_in addr, World& world);
     sockaddr_in addr;
-    Hero_e hero;
     Input input;
-    void tick(double dt);
-    void load_data();
-    static void create(sockaddr_in addr);
+    int32_t m_hero_id;
+    static void create(sockaddr_in addr, World& world);
     static std::unordered_map<std::string, Player*> s_players;
 };
 

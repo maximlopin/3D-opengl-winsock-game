@@ -79,17 +79,19 @@ void _main_data()
 
             for (int i = 0; i < world.heroes.size(); i++)
             {
-                world.heroes[i].enqueue();
+                EClass eclasses[2] = { EClass::ECLASS_HERO, EClass::ECLASS_LOCAL_HERO };
+                EClass eclass = eclasses[world.heroes.itoid(i) == p_player.p_hero->get_id()];
+                world.heroes[i].enqueue(eclass);
             }
 
             for (int i = 0; i < world.monsters.size(); i++)
             {
-                world.monsters[i].enqueue();
+                world.monsters[i].enqueue(EClass::ECLASS_MONSTER);
             }
 
             for (int i = 0; i < world.dropped_items.size(); i++)
             {
-                world.dropped_items[i].enqueue();
+                world.dropped_items[i].enqueue(EClass::ECLASS_DROPPED_ITEM);
             }
 
             Sync_s::end();
@@ -141,7 +143,7 @@ void _main_auth()
             return;
         }
 
-        Player::create(addr);
+        Player::create(addr, world);
 
         closesocket(conn);
     }
@@ -214,6 +216,12 @@ int main()
     input_thread.join();
     game_thread.join();
     data_thread.join();
+
+    for (auto keyval : Player::s_players)
+    {
+        Player* p_player = keyval.second;
+        delete p_player;
+    }
 
     return 0;
 }
