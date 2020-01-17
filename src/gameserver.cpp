@@ -1,7 +1,7 @@
 #include "winsock2.h"
 #include "addr.h"
-#include "entity.h"
 #include "world.h"
+#include "player.h"
 #include <iostream>
 #include <thread>
 #include <mutex>

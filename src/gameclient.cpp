@@ -1,6 +1,5 @@
 #include "winsock2.h"
 #include "math.h"
-#include "entity.h"
 #include "addr.h"
 #include "input.h"
 #include "world.h"
@@ -20,7 +19,7 @@
 static const double INPUT_FREQ = 0.5;
 
 // Render all entities inside this world
-volatile static World g_world;
+volatile static World world;
 static std::mutex mx_world;
 
 // Update input here
@@ -88,7 +87,60 @@ void _main_data()
             closesocket(sock);
             return;
         }
+
+        uint8_t num_ents = ((uint8_t*) buf)[0];
+        uint16_t data_offset = sizeof(uint8_t) + (sizeof(uint8_t) + sizeof(int32_t)) * num_ents;
+
+        uint16_t e_offset = 0;
+        for (int i = 0; i < num_ents; i++)
+        {
+            uint8_t eclass = (uint8_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i);
+            int32_t eid = (int32_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i + sizeof(uint8_t));
+            switch (eclass)
+            {
+                case ECLASS_HERO:
+                    break;
+                case ECLASS_LOCAL_HERO:
+                    if (world.heroes[eid])
+                    break;
+                case ECLASS_MONSTER:
+                    break;
+                case ECLASS_PROP:
+                    break;
+                case ECLASS_NPC:
+                    break;
+                case ECLASS_PORTAL:
+                    break;
+                case ECLASS_DROPPED_ITEM:
+                    break;
+                case ECLASS_LENGTH:
+                    break;
+                default:
+                    std::cout << "Received an invalid entity packet" << std::endl;
+                    break;
+            }
+            e.consume_buffer((buf + data_offset + e_offset));
+            e_offset += e.get_buf_len();
+        }
     }
+        
+/*
+    Sync entity packet structure
+
+    -------------------------------
+     uint8_t |  N (number of entities)
+    -------------------------------
+    struct A | struct A {
+       .     |     uint8_t eclass; // Member of EClass struct
+       .     |     int32_t id; // ID is unique among *this* class of entities
+       N     | };
+    -------------------------------
+      BYTES  | Data.
+        .    | Each entity
+        .    | is responsible for
+        M    | consuming it.
+    -------------------------------
+*/
 }
 
 int main()

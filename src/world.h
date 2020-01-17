@@ -3,59 +3,91 @@
 
 #include "stdlib.h"
 #include "stdint.h"
-#include "cglm/cglm.h"
 #include "entity.h"
-#include "input.h"
-#include <unordered_map>
-#include <string>
-#include <iostream>
-
-#define MAX_SIZE 1024
-
 
 template<typename T>
-struct uid_array {
-    uid_array(int32_t init_size);
-    T& operator [](int32_t i);
-    ~uid_array();
-    void add(T& p_item);
-    void del(int32_t i);
-    int32_t size();
+struct uid_map {
+    uid_map(int32_t init_size)
+    {
+        m_array = (T*) calloc(init_size, sizeof(T));
+    }
+
+    T& operator [](int32_t i)
+    {
+        return (T&) m_array[i];
+    }
+
+    ~uid_map()
+    {
+        free(m_array);
+    }
+
+    void add(T& item)
+    {
+        m_array[m_size++] = item;
+        memcpy(m_array[m_size++], item, sizeof(T));
+    }
+
+    void del(int32_t i)
+    {
+        memcpy(m_array[i], m_array[--m_size], sizeof(T));
+    }
+
+
+    int32_t size()
+    {
+        return m_size;
+    }
 private:
     T* m_array;
     int32_t m_size = 0;
 };
 
-/* Represents a connection AND a hero entity.
-   A hero must not exist without a connection. */
-struct Player {
-    Player(sockaddr_in addr);
-    sockaddr_in addr;
-    Hero_e hero;
-    Input input;
-    void tick(double dt);
-    void load_data();
-    static void create(sockaddr_in addr);
-    static std::unordered_map<std::string, Player*> s_players;
+template<typename T>
+struct uid_array {
+    uid_array(int32_t init_size)
+    {
+        m_array = (T*) calloc(init_size, sizeof(T));
+    }
+
+    T& operator [](int32_t i)
+    {
+        return (T&) m_array[i];
+    }
+
+    ~uid_array()
+    {
+        free(m_array);
+    }
+
+private:
+    T* m_array;
 };
+
+static const int MAX_ENTS_PER_CLASS = 100;
 
 struct World {
     World();
 
-    /* Sync */
-    uid_array<Hero_e> heroes = uid_array<Hero_e>(100);
-    uid_array<Monster_e> monsters = uid_array<Monster_e>(100);
-    uid_array<DroppedItem_e> dropped_items = uid_array<DroppedItem_e>(100);
+    /* Sync-server */
+    uid_map<Hero_e> heroes = uid_map<Hero_e>(MAX_ENTS_PER_CLASS);
+    uid_map<Monster_e> monsters = uid_map<Monster_e>(MAX_ENTS_PER_CLASS);
+    uid_map<DroppedItem_e> dropped_items = uid_map<DroppedItem_e>(MAX_ENTS_PER_CLASS);
 
-    /* Non-Sync */
-    uid_array<Prop_e> props = uid_array<Prop_e>(100);
-    uid_array<NPC_e> npcs = uid_array<NPC_e>(100);
-    uid_array<Portal_e> portals = uid_array<Portal_e>(100);
+    /* Non-Sync-server */
+    uid_map<Prop_e> props = uid_map<Prop_e>(MAX_ENTS_PER_CLASS);
+    uid_map<NPC_e> npcs = uid_map<NPC_e>(MAX_ENTS_PER_CLASS);
+    uid_map<Portal_e> portals = uid_map<Portal_e>(MAX_ENTS_PER_CLASS);
+
+    /* Sync-client */
+    uid_array<Hero_e> heroes = uid_array<Hero_e>(MAX_ENTS_PER_CLASS);
+    uid_array<Monster_e> monsters = uid_array<Monster_e>(MAX_ENTS_PER_CLASS);
+    uid_array<DroppedItem_e> dropped_items = uid_array<DroppedItem_e>(MAX_ENTS_PER_CLASS);
+
+    /* Non-Sync-client */
+    uid_array<Prop_e> props = uid_array<Prop_e>(MAX_ENTS_PER_CLASS);
+    uid_array<NPC_e> npcs = uid_array<NPC_e>(MAX_ENTS_PER_CLASS);
+    uid_array<Portal_e> portals = uid_array<Portal_e>(MAX_ENTS_PER_CLASS);
 };
-
-static int cmp_addr(sockaddr_in* a, sockaddr_in* b)
-{
-    return (a->sin_addr.s_addr == b->sin_addr.s_addr) && (a->sin_port == b->sin_port);
-}
 
 #endif
