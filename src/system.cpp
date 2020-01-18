@@ -5,9 +5,9 @@ void Sync_s::set_socket(SOCKET sock)
     s_sock = sock;
 }
 
-void Sync_s::begin(sockaddr_in* addr)
+void Sync_s::begin(sockaddr_in* addr_ptr)
 {
-    s_address = addr;
+    s_address_ptr = addr_ptr;
 }
 
 /* Must be called after enqueing data for a client */
@@ -27,7 +27,7 @@ void Sync_s::dispatch()
     memcpy(buf, &s_num_ents, 0);
     memcpy(buf + sizeof(s_num_ents), s_head_buf, s_head_len);
     memcpy(buf + sizeof(s_num_ents) + s_head_len, s_data_buf, s_data_len);
-    sendto(s_sock, buf, sizeof(s_num_ents) + s_data_len + s_head_len, 0, (sockaddr*) s_address, sizeof(sockaddr));
+    sendto(s_sock, buf, sizeof(s_num_ents) + s_data_len + s_head_len, 0, (sockaddr*) s_address_ptr, sizeof(sockaddr));
 }
 
 void Sync_s::enqueue(EClass eclass)
@@ -57,7 +57,7 @@ void Sync_s::enqueue(EClass eclass)
 }
 
 SOCKET Sync_s::s_sock = INVALID_SOCKET;
-sockaddr_in* Sync_s:: s_address = NULL;
+sockaddr_in* Sync_s::s_address_ptr = NULL;
 
 char Sync_s::s_data_buf[MAX_BUF_SIZE] = { 0 };
 uint16_t Sync_s::s_data_len = 0;

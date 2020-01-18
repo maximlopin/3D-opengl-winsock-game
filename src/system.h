@@ -39,13 +39,13 @@ struct Sync_s : System_s {
 
     static void set_socket(SOCKET sock);
 
-    static void begin(sockaddr_in* addr);
+    static void begin(sockaddr_in* addr_ptr);
     static void end();
     static void dispatch();
     static void final_dispatch();
 
     static SOCKET s_sock;
-    static sockaddr_in* s_address;
+    static sockaddr_in* s_address_ptr;
 
     static char s_data_buf[MAX_BUF_SIZE];
     static uint16_t s_data_len;

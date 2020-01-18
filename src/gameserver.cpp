@@ -1,7 +1,6 @@
 #include "winsock2.h"
 #include "addr.h"
 #include "world.h"
-#include "player.h"
 #include <iostream>
 #include <thread>
 #include <mutex>
@@ -41,7 +40,6 @@ static const double PACKETS_FREQ = 1.0;
 static const double TICK_FREQ = 1.0;
 
 static World world;
-std::mutex mx_entities;
 
 /* Iterates through players and send them entity data */
 void _main_data()
@@ -69,35 +67,7 @@ void _main_data()
     while (true)
     {
         double t0 = glfwGetTime();
-
-        mx_entities.lock();
-        for (auto keyval : Player::s_players)
-        {
-            Player* p_player = keyval.second;
-
-            Sync_s::begin(&(p_player->addr));
-
-            for (int i = 0; i < world.heroes.size(); i++)
-            {
-                EClass eclasses[2] = { EClass::ECLASS_HERO, EClass::ECLASS_LOCAL_HERO };
-                EClass eclass = eclasses[world.heroes.itoid(i) == p_player.p_hero->get_id()];
-                world.heroes[i].enqueue(eclass);
-            }
-
-            for (int i = 0; i < world.monsters.size(); i++)
-            {
-                world.monsters[i].enqueue(EClass::ECLASS_MONSTER);
-            }
-
-            for (int i = 0; i < world.dropped_items.size(); i++)
-            {
-                world.dropped_items[i].enqueue(EClass::ECLASS_DROPPED_ITEM);
-            }
-
-            Sync_s::end();
-        }       
-        mx_entities.unlock();
-    
+        world.distribute_packets();
         SLEEP(t0, PACKETS_FREQ);
         printf("Sending a packet\n");
     }

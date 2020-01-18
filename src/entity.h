@@ -4,6 +4,7 @@
 #include "cglm/cglm.h"
 #include "component.h"
 #include "system.h"
+#include "input.h"
 
 struct Entity_e {
     Entity_e(int32_t id);
@@ -13,9 +14,11 @@ private:
 };
 
 struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
-    Model_c model;
-    Position_c pos;
-    Velocity_c vel;
+    Hero_e(int32_t id);
+    Input m_input;
+    Model_c m_model;
+    Position_c m_pos;
+    Velocity_c m_vel;
     virtual void fill_buffer(char*) override;
     virtual void consume_buffer(char*) override;
     virtual uint8_t get_buf_len() override;
@@ -24,9 +27,10 @@ struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
 };
 
 struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
-    Model_c model;
-    Position_c pos;
-    Velocity_c vel;
+    Monster_e(int32_t id);
+    Model_c m_model;
+    Position_c m_pos;
+    Velocity_c m_vel;
     virtual void fill_buffer(char*) override;
     virtual void consume_buffer(char*) override;
     virtual uint8_t get_buf_len() override;
@@ -35,8 +39,9 @@ struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
 };
 
 struct DroppedItem_e : Entity_e, Sync_s, Tick_s, Render_s {
-    Position_c pos;
-    Model_c model;
+    DroppedItem_e(int32_t id);
+    Position_c m_pos;
+    Model_c m_model;
     virtual void fill_buffer(char*) override;
     virtual void consume_buffer(char*) override;
     virtual uint8_t get_buf_len() override;
@@ -45,19 +50,22 @@ struct DroppedItem_e : Entity_e, Sync_s, Tick_s, Render_s {
 };
 
 struct Prop_e : Entity_e, Render_s {
-    Model_c model;
-    Position_c pos;
+    Prop_e(int32_t id);
+    Model_c m_model;
+    Position_c m_pos;
     virtual void render(vec3 origin) const override;
 };
 
 struct NPC_e : Entity_e, Render_s {
-    Model_c model;
-    Position_c pos;
+    NPC_e(int32_t id);
+    Model_c m_model;
+    Position_c m_pos;
     virtual void render(vec3 origin) const override;
 };
 
 struct Portal_e : Entity_e, Render_s {
-    Position_c pos;
+    Portal_e(int32_t id);
+    Position_c m_pos;
     virtual void render(vec3 origin) const override;
 };
 

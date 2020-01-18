@@ -1,6 +1,7 @@
 #ifndef UID_MAP_H
 #define UID_MAP_H
 
+#include "stdlib.h"
 #include "stdint.h"
 
 struct filled_array {
@@ -58,19 +59,19 @@ struct index_set {
 
 template<typename T>
 struct uid_map {
-    uid_map(int32_t init_size) : init_size(init_size)
+    uid_map(int32_t init_size) : m_init_size(init_size)
     {
         m_array = (T*) calloc(init_size, sizeof(T));
     }
 
-    T* by_id(int32_t id) const
+    T* by_id(int32_t id)
     {
-        return m_array[m_idtoi[id]];
+        return &(m_array[m_idtoi[id]]);
     }
 
-    T* by_index(int32_t i) const
+    T* by_index(int32_t i)
     {
-        return m_array[i];
+        return &(m_array[i]);
     }
 
     ~uid_map()
@@ -84,16 +85,29 @@ struct uid_map {
         int32_t id = m_free_ids.pop();
         m_idtoi[id] = m_size;
         m_itoid[m_size] = id;
-        memcpy(m_array[m_size++], p_item, sizeof(T));
+        memcpy(&(m_array[m_size++]), p_item, sizeof(T));
         return id;
+    }
+
+    int32_t new_id()
+    {
+        int32_t id = m_free_ids.pop();
+        m_idtoi[id] = m_size;
+        m_itoid[m_size++] = id;
+        return id;
+    }
+
+    void set(int32_t id, T* p_item)
+    {
+        memcpy(&(m_array[m_idtoi[id]]), p_item, sizeof(T));
     }
 
     /* Deletes by static index */
     void del(int32_t id)
     {
         m_free_ids.put(id);
-        memcpy(m_array[m_idtoi[id]], m_array[--m_size], sizeof(T));
-        m_idtoi[m_itoid[m_size]] = m_idtoi[i];
+        memcpy(&(m_array[m_idtoi[id]]), &(m_array[--m_size]), sizeof(T));
+        m_idtoi[m_itoid[m_size]] = m_idtoi[id];
     }
 
     int32_t itoid(int32_t i)
@@ -106,14 +120,14 @@ struct uid_map {
         return m_size;
     }
 private:
-    const int32_t init_size;
+    const int32_t m_init_size;
 
     T* m_array;
     int32_t m_size = 0;
 
-    index_set m_free_ids(m_init_size);
-    filled_array m_idtoi(m_init_size, -1);
-    filled_array m_itoid(m_init_size, -1);
+    index_set m_free_ids = index_set(m_init_size);
+    filled_array m_idtoi = filled_array(m_init_size, -1);
+    filled_array m_itoid = filled_array(m_init_size, -1);
 };
 
 template<typename T>
