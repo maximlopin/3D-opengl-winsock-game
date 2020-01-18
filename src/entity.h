@@ -14,6 +14,7 @@ private:
 };
 
 struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
+    Hero_e();
     Hero_e(int32_t id);
     Input m_input;
     Model_c m_model;

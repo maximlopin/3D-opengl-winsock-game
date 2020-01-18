@@ -15,6 +15,9 @@ class World;
 
 static const int MAX_ENTS_PER_CLASS = 100;
 
+static int cmp_addr(sockaddr_in* a, sockaddr_in* b);
+std::string addr_to_string(sockaddr_in& addr);
+
 struct Player {
     Player(sockaddr_in addr, World& world);
     ~Player();

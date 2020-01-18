@@ -4,6 +4,8 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include "auth.h"
+#include "logging.h"
 
 #define MAX_BUFFER ((2 << 15) - 1)
 
@@ -53,15 +55,6 @@ void _main_data()
         return;
     }
 
-    sockaddr_in addr = SERVER_DATA_ADDR;
-
-    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
-    {
-        SOCKET_ERR_MSG("Failed to bind socket");
-        closesocket(sock);
-        return;
-    }
-
     Sync_s::set_socket(sock);
 
     while (true)
@@ -76,7 +69,7 @@ void _main_data()
 /* Adds new players to world for new connections */
 void _main_auth()
 {
-    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
     {
         SOCKET_ERR_MSG("Failed to create socket");
@@ -92,30 +85,22 @@ void _main_auth()
         return;
     }
 
-    if (listen(sock, 1) == SOCKET_ERROR)
-    {
-        SOCKET_ERR_MSG("Failed to listen to socket");
-        closesocket(sock);
-        return;
-    }
-
     while (true)
     {
-        sockaddr_in addr;
-        int addrlen = sizeof(sockaddr);
+        char buf[MAX_BUF_SIZE];
+        sockaddr_in from;
+        int fromlen;
 
-        SOCKET conn = accept(sock, reinterpret_cast<sockaddr*>(&addr), &addrlen);
-
-        if (conn == INVALID_SOCKET)
+        if (recvfrom(sock, buf, 4, 0, reinterpret_cast<sockaddr*>(&from), &fromlen) == SOCKET_ERROR)
         {
-            SOCKET_ERR_MSG("Failed to accept connection");
+            SOCKET_ERR_MSG("Failed to receive auth packet");
             closesocket(sock);
             return;
         }
 
-        Player::create(addr, world);
 
-        closesocket(conn);
+
+        Player::create(from, world);
     }
     closesocket(sock);
 }
@@ -151,14 +136,12 @@ void _main_input()
             return;
         }
 
-        printf("Received input\n");
+        printf("Received input from %s\n", addr_to_string(from).c_str());
     }
 }
 
 void _main_game()
 {
-    
-
     while (true)
     {
         double t0 = glfwGetTime();

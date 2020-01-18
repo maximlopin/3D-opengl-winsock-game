@@ -6,6 +6,8 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
+#include "auth.h"
+#include "logging.h"
 
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
 
@@ -18,17 +20,9 @@
 
 static const double INPUT_FREQ = 0.5;
 
-// Render all entities inside this world
 volatile static World world;
-static std::mutex mx_world;
 
-// Update input here
-volatile static Input g_input;
-static std::mutex mx_input;
-
-// Always need access to local hero for rendering at the right origin
-volatile static Hero_e g_hero;
-static std::mutex mx_hero;
+volatile static Hero_e local_hero;
 
 void _main_input()
 {
@@ -59,71 +53,6 @@ void _main_input()
     }
 }
 
-void _main_data()
-{
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock == INVALID_SOCKET)
-    {
-        SOCKET_ERR_MSG("Failed to create socket");
-        return;
-    }
-
-    sockaddr_in addr = CLIENT_DATA_ADDR;
-
-    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
-    {
-        SOCKET_ERR_MSG("Failed to bind socket");
-        closesocket(sock);
-        return;
-    }
-
-    char buf[MAX_PACKET_SIZE];
-
-    while (true)
-    {
-        if (recv(sock, buf, MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
-        {
-            SOCKET_ERR_MSG("Failed to receive data");
-            closesocket(sock);
-            return;
-        }
-
-        uint8_t num_ents = ((uint8_t*) buf)[0];
-        uint16_t data_offset = sizeof(uint8_t) + (sizeof(uint8_t) + sizeof(int32_t)) * num_ents;
-
-        uint16_t e_offset = 0;
-        for (int i = 0; i < num_ents; i++)
-        {
-            uint8_t eclass = (uint8_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i);
-            int32_t eid = (int32_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i + sizeof(uint8_t));
-            switch (eclass)
-            {
-                case ECLASS_HERO:
-                    break;
-                case ECLASS_LOCAL_HERO:
-                    if (world.heroes[eid])
-                    break;
-                case ECLASS_MONSTER:
-                    break;
-                case ECLASS_PROP:
-                    break;
-                case ECLASS_NPC:
-                    break;
-                case ECLASS_PORTAL:
-                    break;
-                case ECLASS_DROPPED_ITEM:
-                    break;
-                case ECLASS_LENGTH:
-                    break;
-                default:
-                    std::cout << "Received an invalid entity packet" << std::endl;
-                    break;
-            }
-            e.consume_buffer((buf + data_offset + e_offset));
-            e_offset += e.get_buf_len();
-        }
-    }
-        
 /*
     Sync entity packet structure
 
@@ -141,6 +70,71 @@ void _main_data()
         M    | consuming it.
     -------------------------------
 */
+
+void _main_data()
+{
+    // SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    // if (sock == INVALID_SOCKET)
+    // {
+    //     SOCKET_ERR_MSG("Failed to create socket");
+    //     return;
+    // }
+
+    // sockaddr_in addr = CLIENT_DATA_ADDR;
+
+    // if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
+    // {
+    //     SOCKET_ERR_MSG("Failed to bind socket");
+    //     closesocket(sock);
+    //     return;
+    // }
+
+    // char buf[MAX_PACKET_SIZE];
+
+    // while (true)
+    // {
+    //     if (recv(sock, buf, MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
+    //     {
+    //         SOCKET_ERR_MSG("Failed to receive data");
+    //         closesocket(sock);
+    //         return;
+    //     }
+
+    //     uint8_t num_ents = ((uint8_t*) buf)[0];
+    //     uint16_t data_offset = sizeof(uint8_t) + (sizeof(uint8_t) + sizeof(int32_t)) * num_ents;
+
+    //     uint16_t e_offset = 0;
+    //     for (int i = 0; i < num_ents; i++)
+    //     {
+    //         uint8_t eclass = (uint8_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i);
+    //         int32_t id = (int32_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i + sizeof(uint8_t));
+    //         switch (eclass)
+    //         {
+    //             case ECLASS_HERO:
+    //                 world.m_heroes
+    //                 break;
+
+    //             case ECLASS_LOCAL_HERO:
+    //                 world.m_heroes
+    //                 world.m_heroes.by_id(local_hero_id)
+    //                 break;
+
+    //             case ECLASS_MONSTER:
+    //                 world.m_monsters
+    //                 break;
+
+    //             case ECLASS_DROPPED_ITEM:
+    //                 world.m_dropped_items
+    //                 break;
+
+    //             default:
+    //                 WARNING("Received invalid ECLASS");
+    //                 break;
+    //         }
+    //         e.consume_buffer((buf + data_offset + e_offset));
+    //         e_offset += e.get_buf_len();
+    //     }
+    // }
 }
 
 int main()
@@ -152,26 +146,32 @@ int main()
         return 1;
     }
 
-    SOCKET sock = socket(AF_INET, SOCK_STREAM, 0);
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
     {
         SOCKET_ERR_MSG("Failed to create socket");
         return 1;
     }
 
-    sockaddr_in addr = SERVER_AUTH_ADDR;
+    sockaddr_in auth_addr = SERVER_AUTH_ADDR;
 
-    if (connect(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
+    char buf[MAX_BUF_SIZE];
+
+    if (sendto(sock, buf, MAX_BUF_SIZE, 0, reinterpret_cast<sockaddr*>(&auth_addr), sizeof(sockaddr)) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to connect");
         return 1;
     }
 
-    std::cout << "Connected" << std::endl;
+    recv(sock, buf, MAX_BUF_SIZE, 0);
+
+
+
+    INFO("Connected");
 
     GLFWwindow* window = make_window(1280, 720, "My window");
 
-    glfwSetWindowUserPointer(window, (void*) &g_input);
+    glfwSetWindowUserPointer(window, (void*) &local_hero.m_input);
 
     glfwSetWindowSizeCallback(window, [](GLFWwindow* wnd, int w, int h) {
         glViewport(0, 0, w, h);
@@ -217,10 +217,8 @@ int main()
     });
 
     std::thread input_thread(_main_input);
-    std::thread data_thread(_main_data);
 
     input_thread.join();
-    data_thread.join();
 
     return 0;
 }

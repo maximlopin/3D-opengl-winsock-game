@@ -1,8 +1,17 @@
 #include "world.h"
+#include "logging.h"
 
 static int cmp_addr(sockaddr_in* a, sockaddr_in* b)
 {
     return (a->sin_addr.s_addr == b->sin_addr.s_addr) && (a->sin_port == b->sin_port);
+}
+
+std::string addr_to_string(sockaddr_in& addr)
+{
+    std::string ip_str = std::string(inet_ntoa(addr.sin_addr));
+    std::string port_str = std::to_string(ntohs(addr.sin_port));
+    std::string str =  ip_str + ":" + port_str;
+    return str;
 }
 
 World::World()
@@ -32,18 +41,16 @@ Player::~Player()
 
 void Player::create(sockaddr_in addr, World& world)
 {
-    std::string ip_str = std::string(inet_ntoa(addr.sin_addr));
-    std::string port_str = std::to_string(ntohs(addr.sin_port));
-    std::string key =  ip_str + ":" + port_str;
+    std::string key =  addr_to_string(addr);
     
     if (s_players.find(key) == s_players.end())
     {
         s_players[key] = new Player(addr, world);
-        std::cout << key << " connected" << std::endl;
+        INFO(std::string(key) + " connected");
     }
     else
     {
-        std::cout << key << " connected (ignoring repeating connection)" << std::endl;
+        INFO(std::string(key) + " tried to connect when already connected");
     }
 }
 
