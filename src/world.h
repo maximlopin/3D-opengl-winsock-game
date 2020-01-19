@@ -9,25 +9,12 @@
 #include "entity.h"
 #include "stdint.h"
 #include "uid_map.h"
-
-class Player;
-class World;
+#include "logging.h"
 
 static const int MAX_ENTS_PER_CLASS = 100;
 
 static int cmp_addr(sockaddr_in* a, sockaddr_in* b);
 std::string addr_to_string(sockaddr_in& addr);
-
-struct Player {
-    Player(sockaddr_in addr, World& world);
-    ~Player();
-    sockaddr_in m_addr;
-    Input m_input;
-    int32_t m_hero_id;
-    World* m_world_ptr;
-    static void create(sockaddr_in addr, World& world);
-    static std::unordered_map<std::string, Player*> s_players;
-};
 
 struct World {
     World();
@@ -41,46 +28,49 @@ struct World {
     uid_map<Prop_e> m_props = uid_map<Prop_e>(MAX_ENTS_PER_CLASS);
     uid_map<NPC_e> m_npcs = uid_map<NPC_e>(MAX_ENTS_PER_CLASS);
     uid_map<Portal_e> m_portals = uid_map<Portal_e>(MAX_ENTS_PER_CLASS);
+};
 
-    void distribute_packets()
+struct Player {
+    Player(sockaddr_in addr, World& world);
+    ~Player();
+    sockaddr_in m_addr;
+    Input m_input;
+    int32_t m_hero_id;
+    World* m_world_ptr;
+    static Player* create(sockaddr_in addr, World& world);
+    static std::unordered_map<std::string, Player*> s_players;
+
+    static void distribute_packets(SOCKET sock)
     {
         for (auto keyval : Player::s_players)
         {
             Player* player_ptr = keyval.second;
+            World* world_ptr = player_ptr->m_world_ptr;
 
-            Sync_s::begin(&(player_ptr->m_addr));
+            INFO("Sending packets to " << keyval.first);
 
-            for (int i = 0; i < m_heroes.size(); i++)
+            Sync_s::begin(sock, &(player_ptr->m_addr));
+
+            for (int i = 0; i < world_ptr->m_heroes.size(); i++)
             {
                 EClass eclasses[2] = { EClass::ECLASS_HERO, EClass::ECLASS_LOCAL_HERO };
-                EClass eclass = eclasses[m_heroes.itoid(i) == player_ptr->m_hero_id];
-                
-                m_heroes.by_index(i)->enqueue(eclass);
+                EClass eclass = eclasses[world_ptr->m_heroes.itoid(i) == player_ptr->m_hero_id];
+                world_ptr->m_heroes.by_index(i)->enqueue(eclass);
             }
 
-            for (int i = 0; i < m_monsters.size(); i++)
+            for (int i = 0; i < world_ptr->m_monsters.size(); i++)
             {
-                m_monsters.by_index(i)->enqueue(EClass::ECLASS_MONSTER);
+                world_ptr->m_monsters.by_index(i)->enqueue(EClass::ECLASS_MONSTER);
             }
 
-            for (int i = 0; i < m_dropped_items.size(); i++)
+            for (int i = 0; i < world_ptr->m_dropped_items.size(); i++)
             {
-                m_dropped_items.by_index(i)->enqueue(EClass::ECLASS_DROPPED_ITEM);
+                world_ptr->m_dropped_items.by_index(i)->enqueue(EClass::ECLASS_DROPPED_ITEM);
             }
 
             Sync_s::end();
         }       
     }
-
-    // /* Sync-client */
-    // uid_array<Hero_e> heroes = uid_array<Hero_e>(MAX_ENTS_PER_CLASS);
-    // uid_array<Monster_e> monsters = uid_array<Monster_e>(MAX_ENTS_PER_CLASS);
-    // uid_array<DroppedItem_e> dropped_items = uid_array<DroppedItem_e>(MAX_ENTS_PER_CLASS);
-
-    // /* Non-Sync-client */
-    // uid_array<Prop_e> props = uid_array<Prop_e>(MAX_ENTS_PER_CLASS);
-    // uid_array<NPC_e> npcs = uid_array<NPC_e>(MAX_ENTS_PER_CLASS);
-    // uid_array<Portal_e> portals = uid_array<Portal_e>(MAX_ENTS_PER_CLASS);
 };
 
 #endif

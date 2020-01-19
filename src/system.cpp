@@ -1,12 +1,8 @@
 #include "system.h"
 
-void Sync_s::set_socket(SOCKET sock)
+void Sync_s::begin(SOCKET sock, sockaddr_in* addr_ptr)
 {
     s_sock = sock;
-}
-
-void Sync_s::begin(sockaddr_in* addr_ptr)
-{
     s_address_ptr = addr_ptr;
 }
 

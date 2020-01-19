@@ -43,7 +43,7 @@ static const double TICK_FREQ = 1.0;
 
 static World world;
 
-/* Iterates through players and send them entity data */
+/* Iterates through players and sends them entity data */
 void _main_data()
 {
     static char buf[MAX_BUFFER];
@@ -55,14 +55,11 @@ void _main_data()
         return;
     }
 
-    Sync_s::set_socket(sock);
-
     while (true)
     {
         double t0 = glfwGetTime();
-        world.distribute_packets();
+        Player::distribute_packets(sock);
         SLEEP(t0, PACKETS_FREQ);
-        printf("Sending a packet\n");
     }
 }
 
@@ -88,67 +85,37 @@ void _main_auth()
     while (true)
     {
         char buf[MAX_BUF_SIZE];
-        sockaddr_in from;
-        int fromlen;
 
-        if (recvfrom(sock, buf, 4, 0, reinterpret_cast<sockaddr*>(&from), &fromlen) == SOCKET_ERROR)
+        sockaddr_in from;
+        int fromlen = sizeof(sockaddr);
+
+        if (recvfrom(sock, buf, MAX_BUF_SIZE, 0, reinterpret_cast<sockaddr*>(&from), &fromlen) == SOCKET_ERROR)
         {
             SOCKET_ERR_MSG("Failed to receive auth packet");
             closesocket(sock);
             return;
         }
 
+        /*
+            Auth packet structure
 
+            ----------------------------------------------
+             int32_t | ID of newly created Hero_e instance
+            ----------------------------------------------
+        */
 
-        Player::create(from, world);
-    }
-    closesocket(sock);
-}
+        Player* player_ptr = Player::create(from, world);
 
-/* Receives input and sends it to the right player in world */
-void _main_input()
-{
-    SOCKET sock;
-    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) == INVALID_SOCKET)
-    {
-        SOCKET_ERR_MSG("Failed to create socket");
-        return;
-    }
+        int32_t id = player_ptr == nullptr ? -1 : player_ptr->m_hero_id;
 
-    sockaddr_in addr = SERVER_INPUT_ADDR;
-    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
-    {
-        SOCKET_ERR_MSG("Failed to bind socket");
-        closesocket(sock);
-        return;
-    }
-
-    char buf[MAX_BUFFER];
-
-    while (true)
-    {
-        sockaddr_in from;
-        int fromlen = sizeof(sockaddr);
-        if (recvfrom(sock, buf, MAX_BUFFER, 0, reinterpret_cast<sockaddr*>(&from), &fromlen) == SOCKET_ERROR)
+        if (sendto(sock, reinterpret_cast<char*>(&id), sizeof(int32_t), 0, reinterpret_cast<sockaddr*>(&from), sizeof(sockaddr)) == SOCKET_ERROR)
         {
-            SOCKET_ERR_MSG("Failed to recieve data");
+            SOCKET_ERR_MSG("Failed to send ID");
             closesocket(sock);
             return;
         }
-
-        printf("Received input from %s\n", addr_to_string(from).c_str());
     }
-}
-
-void _main_game()
-{
-    while (true)
-    {
-        double t0 = glfwGetTime();
-        SLEEP(t0, TICK_FREQ);
-        printf("Ticked\n");
-    }
-    
+    closesocket(sock);
 }
 
 int main()
@@ -161,13 +128,9 @@ int main()
     }
 
     std::thread auth_thread(_main_auth);
-    std::thread input_thread(_main_input);
-    std::thread game_thread(_main_game);
     std::thread data_thread(_main_data);
 
     auth_thread.join();
-    input_thread.join();
-    game_thread.join();
     data_thread.join();
 
     for (auto keyval : Player::s_players)

@@ -79,14 +79,27 @@ struct uid_map {
         free(m_array);
     }
 
-    /* Returns static index */
-    int32_t add(T* p_item)
+    /* Returns id */
+    int32_t push(T* item_ptr)
     {
         int32_t id = m_free_ids.pop();
         m_idtoi[id] = m_size;
         m_itoid[m_size] = id;
-        memcpy(&(m_array[m_size++]), p_item, sizeof(T));
+        memcpy(&(m_array[m_size++]), item_ptr, sizeof(T));
         return id;
+    }
+
+    void force_add(int32_t id, T* item_ptr)
+    {
+        m_idtoi[id] = m_size;
+        m_itoid[m_size++] = id;
+        set(id, item_ptr);
+    }
+
+    void force_del(int32_t id)
+    {
+        memcpy(&(m_array[m_idtoi[id]]), &(m_array[--m_size]), sizeof(T));
+        m_idtoi[m_itoid[m_size]] = m_idtoi[id];
     }
 
     int32_t new_id()
@@ -97,9 +110,9 @@ struct uid_map {
         return id;
     }
 
-    void set(int32_t id, T* p_item)
+    void set(int32_t id, T* item_ptr)
     {
-        memcpy(&(m_array[m_idtoi[id]]), p_item, sizeof(T));
+        memcpy(&(m_array[m_idtoi[id]]), item_ptr, sizeof(T));
     }
 
     /* Deletes by static index */

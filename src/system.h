@@ -37,9 +37,7 @@ struct Sync_s : System_s {
     virtual uint8_t get_buf_len() = 0;
     void enqueue(EClass eclass);
 
-    static void set_socket(SOCKET sock);
-
-    static void begin(sockaddr_in* addr_ptr);
+    static void begin(SOCKET sock, sockaddr_in* addr_ptr);
     static void end();
     static void dispatch();
     static void final_dispatch();

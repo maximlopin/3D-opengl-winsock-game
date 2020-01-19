@@ -4,7 +4,7 @@
 #include "stdint.h"
 
 /* Must always be sequential */
-enum class EClass : uint8_t {
+enum EClass {
     ECLASS_HERO,
     ECLASS_LOCAL_HERO,
     ECLASS_MONSTER,

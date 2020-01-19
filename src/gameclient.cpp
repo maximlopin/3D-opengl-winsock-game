@@ -8,6 +8,7 @@
 #include <mutex>
 #include "auth.h"
 #include "logging.h"
+#include "eclass.h"
 
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
 
@@ -20,122 +21,7 @@
 
 static const double INPUT_FREQ = 0.5;
 
-volatile static World world;
-
-volatile static Hero_e local_hero;
-
-void _main_input()
-{
-
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock == INVALID_SOCKET)
-    {
-        SOCKET_ERR_MSG("Failed to create socket");
-        return;
-    }
-
-    sockaddr_in addr = SERVER_INPUT_ADDR;
-
-    char msg[] = { 'h', 'e', 'l', 'l', 'o', 0 };
-
-    while (true)
-    {
-        double t0 = glfwGetTime();
-
-        if (sendto(sock, msg, 6, 0, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
-        {
-            SOCKET_ERR_MSG("Failed to send data");
-            return;
-        }
-
-        SLEEP(t0, INPUT_FREQ)
-
-    }
-}
-
-/*
-    Sync entity packet structure
-
-    -------------------------------
-     uint8_t |  N (number of entities)
-    -------------------------------
-    struct A | struct A {
-       .     |     uint8_t eclass; // Member of EClass struct
-       .     |     int32_t id; // ID is unique among *this* class of entities
-       N     | };
-    -------------------------------
-      BYTES  | Data.
-        .    | Each entity
-        .    | is responsible for
-        M    | consuming it.
-    -------------------------------
-*/
-
-void _main_data()
-{
-    // SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
-    // if (sock == INVALID_SOCKET)
-    // {
-    //     SOCKET_ERR_MSG("Failed to create socket");
-    //     return;
-    // }
-
-    // sockaddr_in addr = CLIENT_DATA_ADDR;
-
-    // if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
-    // {
-    //     SOCKET_ERR_MSG("Failed to bind socket");
-    //     closesocket(sock);
-    //     return;
-    // }
-
-    // char buf[MAX_PACKET_SIZE];
-
-    // while (true)
-    // {
-    //     if (recv(sock, buf, MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
-    //     {
-    //         SOCKET_ERR_MSG("Failed to receive data");
-    //         closesocket(sock);
-    //         return;
-    //     }
-
-    //     uint8_t num_ents = ((uint8_t*) buf)[0];
-    //     uint16_t data_offset = sizeof(uint8_t) + (sizeof(uint8_t) + sizeof(int32_t)) * num_ents;
-
-    //     uint16_t e_offset = 0;
-    //     for (int i = 0; i < num_ents; i++)
-    //     {
-    //         uint8_t eclass = (uint8_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i);
-    //         int32_t id = (int32_t) (buf + data_offset + (sizeof(uint8_t) + sizeof(int32_t)) * i + sizeof(uint8_t));
-    //         switch (eclass)
-    //         {
-    //             case ECLASS_HERO:
-    //                 world.m_heroes
-    //                 break;
-
-    //             case ECLASS_LOCAL_HERO:
-    //                 world.m_heroes
-    //                 world.m_heroes.by_id(local_hero_id)
-    //                 break;
-
-    //             case ECLASS_MONSTER:
-    //                 world.m_monsters
-    //                 break;
-
-    //             case ECLASS_DROPPED_ITEM:
-    //                 world.m_dropped_items
-    //                 break;
-
-    //             default:
-    //                 WARNING("Received invalid ECLASS");
-    //                 break;
-    //         }
-    //         e.consume_buffer((buf + data_offset + e_offset));
-    //         e_offset += e.get_buf_len();
-    //     }
-    // }
-}
+static World world;
 
 int main()
 {
@@ -153,21 +39,55 @@ int main()
         return 1;
     }
 
-    sockaddr_in auth_addr = SERVER_AUTH_ADDR;
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port = 0;
 
-    char buf[MAX_BUF_SIZE];
-
-    if (sendto(sock, buf, MAX_BUF_SIZE, 0, reinterpret_cast<sockaddr*>(&auth_addr), sizeof(sockaddr)) == SOCKET_ERROR)
+    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == INVALID_SOCKET)
     {
-        SOCKET_ERR_MSG("Failed to connect");
+        SOCKET_ERR_MSG("Failed to bind socket");
+        closesocket(sock);
         return 1;
     }
 
-    recv(sock, buf, MAX_BUF_SIZE, 0);
+    sockaddr_in auth_addr = SERVER_AUTH_ADDR;
 
+    char blank_buf[1] = { 0 };
+    if (sendto(sock, blank_buf, 1, 0, reinterpret_cast<sockaddr*>(&auth_addr), sizeof(sockaddr)) == SOCKET_ERROR)
+    {
+        SOCKET_ERR_MSG("Failed to connect (sendto)");
+        return 1;
+    }
 
+    char buf[MAX_PACKET_SIZE];
 
-    INFO("Connected");
+    if (recv(sock, buf, sizeof(int32_t), 0) == SOCKET_ERROR)
+    {
+        SOCKET_ERR_MSG("Failed to connect (recv)");
+        return 1;
+    }
+
+    /*
+        Auth packet structure
+
+        ----------------------------------------------
+         int32_t | ID of newly created Hero_e instance
+        ----------------------------------------------
+    */
+
+    int32_t id = *reinterpret_cast<int32_t*>(buf);
+    
+    if (id == -1)
+    {
+        INFO("Server returned ID = -1");
+        closesocket(sock);
+        return 0;
+    }
+
+    Hero_e local_hero(id);
+
+    INFO("Connected with ID " << id);
 
     GLFWwindow* window = make_window(1280, 720, "My window");
 
@@ -216,9 +136,128 @@ int main()
         }
     });
 
-    std::thread input_thread(_main_input);
+    while (true)
+    {
+        if (recv(sock, buf, MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
+        {
+            SOCKET_ERR_MSG("Failed to receive data");
+            closesocket(sock);
+            return 1;
+        }
 
-    input_thread.join();
+        /*
+            Sync entity packet structure
 
+            -------------------------------
+             uint8_t |  N (number of entities)
+            -------------------------------
+            struct A | struct A {
+                .    |     uint8_t eclass; // Member of EClass struct
+                .    |     int32_t id;
+                N    | };
+            -------------------------------
+              BYTES  | Data.
+                .    | Each entity
+                .    | is responsible for
+                M    | consuming it.
+            -------------------------------
+        */
+
+        uint8_t num_ents = *reinterpret_cast<uint8_t*>(buf);
+
+        INFO("Received packet for " << static_cast<int>(num_ents) << " entities");
+
+        int einfo_start = sizeof(uint8_t);
+        int edata_start = sizeof(uint8_t) + sizeof(uint8_t) + sizeof(num_ents) * (sizeof(uint8_t) + sizeof(int32_t));
+
+        int einfo_offset = 0;
+        int edata_offset = 0;
+
+        for (int i = 0; i < num_ents; i++)
+        {
+            uint8_t eclass = *reinterpret_cast<uint8_t*>(buf + einfo_start + einfo_offset);
+            int32_t id =  *reinterpret_cast<int32_t*>(buf + einfo_start + einfo_offset + sizeof(uint8_t));
+            einfo_offset += sizeof(uint8_t) + sizeof(int32_t);
+
+            switch (eclass)
+            {
+                case EClass::ECLASS_HERO:
+                {
+                    Hero_e* hero_ptr = world.m_heroes.by_id(id);
+                    if (hero_ptr == nullptr)
+                    {
+                        Hero_e hero(id);
+                        hero.consume_buffer(buf + edata_start + edata_offset);
+                        world.m_heroes.force_add(id, &hero);
+                        edata_offset += hero.get_buf_len();
+                    }
+                    else
+                    {
+                        hero_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        edata_offset += hero_ptr->get_buf_len();
+                    }
+                }
+                break;
+
+                case EClass::ECLASS_LOCAL_HERO:
+                {
+                    Hero_e* hero_ptr = world.m_heroes.by_id(id);
+                    if (hero_ptr == nullptr)
+                    {
+                        Hero_e hero(id);
+                        hero.consume_buffer(buf + edata_start + edata_offset);
+                        world.m_heroes.force_add(id, &hero);
+                        edata_offset += hero.get_buf_len();
+                    }
+                    else
+                    {
+                        hero_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        edata_offset += hero_ptr->get_buf_len();
+                    }
+                }    
+                break;
+
+                case EClass::ECLASS_MONSTER:
+                {
+                    Monster_e* monster_ptr = world.m_monsters.by_id(id);
+                    if (monster_ptr == nullptr)
+                    {
+                        Monster_e monster(id);
+                        monster.consume_buffer(buf + edata_start + edata_offset);
+                        world.m_monsters.force_add(id, &monster);
+                        edata_offset += monster.get_buf_len();
+                    }
+                    else
+                    {
+                        monster_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        edata_offset += monster_ptr->get_buf_len();
+                    }
+                }
+                break;
+
+                case EClass::ECLASS_DROPPED_ITEM:
+                {
+                    DroppedItem_e* item_ptr = world.m_dropped_items.by_id(id);
+                    if (item_ptr == nullptr)
+                    {
+                        DroppedItem_e item(id);
+                        item.consume_buffer(buf + edata_start + edata_offset);
+                        world.m_dropped_items.force_add(id, &item);
+                        edata_offset += item.get_buf_len();
+                    }
+                    else
+                    {
+                        item_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        edata_offset += item_ptr->get_buf_len();
+                    }
+                }
+                break;
+
+                default:
+                    WARNING("Received invalid EClass");
+                    break;
+            }
+        }
+    }
     return 0;
 }

@@ -3,9 +3,9 @@
 
 #include "stdint.h"
 
-enum class Auth : uint8_t {
-    AUTH_FAIL,
-    AUTH_SUCCESS
-};
+// enum class Auth : uint8_t {
+//     AUTH_FAIL,
+//     AUTH_SUCCESS
+// };
 
 #endif

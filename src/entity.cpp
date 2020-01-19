@@ -11,11 +11,6 @@ int32_t Entity_e::get_id()
     return m_id;
 }
 
-Hero_e::Hero_e() : Entity_e(0)
-{
-    WARNING("Hero_e is instantiated with default constructor");
-}
-
 Hero_e::Hero_e(int32_t id) : Entity_e(id)
 {
 
