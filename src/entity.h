@@ -5,6 +5,7 @@
 #include "component.h"
 #include "system.h"
 #include "input.h"
+#include "logging.h"
 
 struct Entity_e {
     Entity_e(int32_t id);
@@ -19,9 +20,9 @@ struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
     Model_c m_model;
     Position_c m_pos;
     Velocity_c m_vel;
-    virtual void fill_buffer(char*) override;
-    virtual void consume_buffer(char*) override;
-    virtual uint8_t get_buf_len() override;
+    virtual void fill_buffer(int8_t*) override;
+    virtual void consume_buffer(int8_t*) override;
+    virtual int32_t get_buf_len() override;
     virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
 };
@@ -31,9 +32,9 @@ struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
     Model_c m_model;
     Position_c m_pos;
     Velocity_c m_vel;
-    virtual void fill_buffer(char*) override;
-    virtual void consume_buffer(char*) override;
-    virtual uint8_t get_buf_len() override;
+    virtual void fill_buffer(int8_t*) override;
+    virtual void consume_buffer(int8_t*) override;
+    virtual int32_t get_buf_len() override;
     virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
 };
@@ -42,9 +43,9 @@ struct DroppedItem_e : Entity_e, Sync_s, Tick_s, Render_s {
     DroppedItem_e(int32_t id);
     Position_c m_pos;
     Model_c m_model;
-    virtual void fill_buffer(char*) override;
-    virtual void consume_buffer(char*) override;
-    virtual uint8_t get_buf_len() override;
+    virtual void fill_buffer(int8_t*) override;
+    virtual void consume_buffer(int8_t*) override;
+    virtual int32_t get_buf_len() override;
     virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
 };

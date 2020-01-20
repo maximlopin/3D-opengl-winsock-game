@@ -53,19 +53,26 @@ struct Player {
 
             for (int i = 0; i < world_ptr->m_heroes.size(); i++)
             {
-                EClass eclasses[2] = { EClass::ECLASS_HERO, EClass::ECLASS_LOCAL_HERO };
-                EClass eclass = eclasses[world_ptr->m_heroes.itoid(i) == player_ptr->m_hero_id];
-                world_ptr->m_heroes.by_index(i)->enqueue(eclass);
+                Hero_e* hero_ptr = world_ptr->m_heroes.by_index(i);
+                EClass eclass = EClass::ECLASS_HERO;
+                int32_t id = hero_ptr->get_id();
+                world_ptr->m_heroes.by_index(i)->enqueue(eclass, id);
             }
 
             for (int i = 0; i < world_ptr->m_monsters.size(); i++)
             {
-                world_ptr->m_monsters.by_index(i)->enqueue(EClass::ECLASS_MONSTER);
+                Monster_e* monster_ptr = world_ptr->m_monsters.by_index(i);
+                EClass eclass = ECLASS_MONSTER;
+                int32_t id = monster_ptr->get_id();
+                world_ptr->m_monsters.by_index(i)->enqueue(eclass, id);
             }
 
             for (int i = 0; i < world_ptr->m_dropped_items.size(); i++)
             {
-                world_ptr->m_dropped_items.by_index(i)->enqueue(EClass::ECLASS_DROPPED_ITEM);
+                DroppedItem_e* item_ptr = world_ptr->m_dropped_items.by_index(i);
+                EClass eclass = ECLASS_DROPPED_ITEM;
+                int32_t id = item_ptr->get_id();
+                world_ptr->m_dropped_items.by_index(i)->enqueue(eclass, id);
             }
 
             Sync_s::end();

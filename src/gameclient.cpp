@@ -60,9 +60,9 @@ int main()
         return 1;
     }
 
-    char buf[MAX_PACKET_SIZE];
+    int8_t buf[MAX_PACKET_SIZE];
 
-    if (recv(sock, buf, sizeof(int32_t), 0) == SOCKET_ERROR)
+    if (recv(sock, reinterpret_cast<char*>(buf), sizeof(int32_t), 0) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to connect (recv)");
         return 1;
@@ -138,7 +138,7 @@ int main()
 
     while (true)
     {
-        if (recv(sock, buf, MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
+        if (recv(sock, reinterpret_cast<char*>(buf), MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
         {
             SOCKET_ERR_MSG("Failed to receive data");
             closesocket(sock);
@@ -163,58 +163,40 @@ int main()
             -------------------------------
         */
 
-        uint8_t num_ents = *reinterpret_cast<uint8_t*>(buf);
+        int32_t num_ents = *reinterpret_cast<int32_t*>(buf);
 
-        INFO("Received packet for " << static_cast<int>(num_ents) << " entities");
-
-        int einfo_start = sizeof(uint8_t);
-        int edata_start = sizeof(uint8_t) + sizeof(uint8_t) + sizeof(num_ents) * (sizeof(uint8_t) + sizeof(int32_t));
-
-        int einfo_offset = 0;
-        int edata_offset = 0;
+        int32_t einfo_offset = sizeof(num_ents);
+        int32_t edata_offset = sizeof(num_ents) + num_ents * sizeof(int32_t) * 2;
 
         for (int i = 0; i < num_ents; i++)
         {
-            uint8_t eclass = *reinterpret_cast<uint8_t*>(buf + einfo_start + einfo_offset);
-            int32_t id =  *reinterpret_cast<int32_t*>(buf + einfo_start + einfo_offset + sizeof(uint8_t));
-            einfo_offset += sizeof(uint8_t) + sizeof(int32_t);
+            int32_t eclass = *reinterpret_cast<int32_t*>(buf + einfo_offset);
+            einfo_offset += sizeof(eclass);
+
+            int32_t id =  *reinterpret_cast<int32_t*>(buf + einfo_offset);
+            einfo_offset += sizeof(id);
+
+            // INFO("Entity (EClass = " << eclass << ", id = " << id << ")");
 
             switch (eclass)
             {
                 case EClass::ECLASS_HERO:
                 {
                     Hero_e* hero_ptr = world.m_heroes.by_id(id);
+
                     if (hero_ptr == nullptr)
                     {
                         Hero_e hero(id);
-                        hero.consume_buffer(buf + edata_start + edata_offset);
+                        hero.consume_buffer(buf + edata_offset);
                         world.m_heroes.force_add(id, &hero);
                         edata_offset += hero.get_buf_len();
                     }
                     else
                     {
-                        hero_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        hero_ptr->consume_buffer(buf + edata_offset);
                         edata_offset += hero_ptr->get_buf_len();
                     }
                 }
-                break;
-
-                case EClass::ECLASS_LOCAL_HERO:
-                {
-                    Hero_e* hero_ptr = world.m_heroes.by_id(id);
-                    if (hero_ptr == nullptr)
-                    {
-                        Hero_e hero(id);
-                        hero.consume_buffer(buf + edata_start + edata_offset);
-                        world.m_heroes.force_add(id, &hero);
-                        edata_offset += hero.get_buf_len();
-                    }
-                    else
-                    {
-                        hero_ptr->consume_buffer(buf + edata_start + edata_offset);
-                        edata_offset += hero_ptr->get_buf_len();
-                    }
-                }    
                 break;
 
                 case EClass::ECLASS_MONSTER:
@@ -223,13 +205,13 @@ int main()
                     if (monster_ptr == nullptr)
                     {
                         Monster_e monster(id);
-                        monster.consume_buffer(buf + edata_start + edata_offset);
+                        monster.consume_buffer(buf + edata_offset);
                         world.m_monsters.force_add(id, &monster);
                         edata_offset += monster.get_buf_len();
                     }
                     else
                     {
-                        monster_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        monster_ptr->consume_buffer(buf + edata_offset);
                         edata_offset += monster_ptr->get_buf_len();
                     }
                 }
@@ -241,23 +223,23 @@ int main()
                     if (item_ptr == nullptr)
                     {
                         DroppedItem_e item(id);
-                        item.consume_buffer(buf + edata_start + edata_offset);
+                        item.consume_buffer(buf + edata_offset);
                         world.m_dropped_items.force_add(id, &item);
                         edata_offset += item.get_buf_len();
                     }
                     else
                     {
-                        item_ptr->consume_buffer(buf + edata_start + edata_offset);
+                        item_ptr->consume_buffer(buf + edata_offset);
                         edata_offset += item_ptr->get_buf_len();
                     }
                 }
                 break;
 
-                default:
-                    WARNING("Received invalid EClass");
-                    break;
+                WARNING("Received invalid EClass");
             }
         }
+
+        INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
     }
     return 0;
 }

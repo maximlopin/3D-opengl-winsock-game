@@ -1,9 +1,8 @@
 #include "entity.h"
-#include "logging.h"
 
 Entity_e::Entity_e(int32_t id) : m_id(id)
 {
-
+    INFO("Created entity with ID " << id);
 }
 
 int32_t Entity_e::get_id()
@@ -16,17 +15,17 @@ Hero_e::Hero_e(int32_t id) : Entity_e(id)
 
 }
 
-void Hero_e::fill_buffer(char* buf)
+void Hero_e::fill_buffer(int8_t* buf)
 {
     memcpy(buf, m_pos.pos, sizeof(m_pos.pos));
 }
 
-void Hero_e::consume_buffer(char* buf)
+void Hero_e::consume_buffer(int8_t* buf)
 {
     memcpy(m_pos.pos, buf, sizeof(m_pos.pos));
 }
 
-uint8_t Hero_e::get_buf_len()
+int32_t Hero_e::get_buf_len()
 {
     return sizeof(m_pos.pos);
 }
@@ -58,17 +57,17 @@ Monster_e::Monster_e(int32_t id) : Entity_e(id)
 
 }
 
-void Monster_e::fill_buffer(char* buf)
+void Monster_e::fill_buffer(int8_t* buf)
 {
     memcpy(buf, m_pos.pos, sizeof(m_pos.pos));
 }
 
-void Monster_e::consume_buffer(char* buf)
+void Monster_e::consume_buffer(int8_t* buf)
 {
     memcpy(m_pos.pos, buf, sizeof(m_pos.pos));
 }
 
-uint8_t Monster_e::get_buf_len()
+int32_t Monster_e::get_buf_len()
 {
     return 0;
 }
@@ -88,17 +87,17 @@ DroppedItem_e::DroppedItem_e(int32_t id) : Entity_e(id)
 
 }
 
-void DroppedItem_e::fill_buffer(char* buf)
+void DroppedItem_e::fill_buffer(int8_t* buf)
 {
     memcpy(buf, m_pos.pos, sizeof(m_pos.pos));
 }
 
-void DroppedItem_e::consume_buffer(char* buf)
+void DroppedItem_e::consume_buffer(int8_t* buf)
 {
     memcpy(m_pos.pos, buf, sizeof(m_pos.pos));
 }
 
-uint8_t DroppedItem_e::get_buf_len()
+int32_t DroppedItem_e::get_buf_len()
 {
     return sizeof(m_pos.pos);
 }

@@ -66,7 +66,11 @@ struct uid_map {
 
     T* by_id(int32_t id)
     {
-        return &(m_array[m_idtoi[id]]);
+        if (m_idtoi[id] != -1)
+        {
+            return &(m_array[m_idtoi[id]]);
+        }
+        return nullptr;
     }
 
     T* by_index(int32_t i)

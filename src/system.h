@@ -5,6 +5,7 @@
 #include "winsock2.h"
 #include "cglm/cglm.h"
 #include "eclass.h"
+#include "logging.h"
 
 /*
     Sync entity packet structure
@@ -26,16 +27,16 @@
     -------------------------------
 */
 
-static const uint16_t MAX_BUF_SIZE = ((2 << 15) - 1);
-static const uint16_t MAX_PACKET_SIZE = 160;
+static const int32_t MAX_BUF_SIZE = ((2 << 15) - 1);
+static const int32_t MAX_PACKET_SIZE = 160;
 
 struct System_s { };
 
 struct Sync_s : System_s {
-    virtual void fill_buffer(char*) = 0;
-    virtual void consume_buffer(char*) = 0;
-    virtual uint8_t get_buf_len() = 0;
-    void enqueue(EClass eclass);
+    virtual void fill_buffer(int8_t*) = 0;
+    virtual void consume_buffer(int8_t*) = 0;
+    virtual int32_t get_buf_len() = 0;
+    void enqueue(int32_t eclass, int32_t id);
 
     static void begin(SOCKET sock, sockaddr_in* addr_ptr);
     static void end();
@@ -45,13 +46,15 @@ struct Sync_s : System_s {
     static SOCKET s_sock;
     static sockaddr_in* s_address_ptr;
 
-    static char s_data_buf[MAX_BUF_SIZE];
-    static uint16_t s_data_len;
+    static int8_t s_buf[MAX_BUF_SIZE];
 
-    static char s_head_buf[MAX_BUF_SIZE];
-    static uint16_t s_head_len;
+    static int32_t s_num_ents;
 
-    static uint8_t s_num_ents;
+    static int8_t s_einfo_buf[MAX_BUF_SIZE];
+    static int32_t s_einfo_len;
+
+    static int8_t s_edata_buf[MAX_BUF_SIZE];
+    static int32_t s_edata_len;
 };
 
 struct Render_s : System_s {
