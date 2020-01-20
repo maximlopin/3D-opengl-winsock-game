@@ -14,24 +14,6 @@ void Sync_s::end()
     }
 }
 
-/*
-    Sync entity packet structure
-
-    -------------------------------
-     int32_t |  N (number of entities)
-    -------------------------------
-    struct A | struct A {
-        .    |     int32_t eclass; // Member of EClass struct
-        .    |     int32_t id;
-        N    | };
-    -------------------------------
-      BYTES  | Data.
-        .    | Each entity
-        .    | is responsible for
-        M    | consuming it.
-    -------------------------------
-*/
-
 void Sync_s::dispatch()
 {
     int32_t offset = 0;

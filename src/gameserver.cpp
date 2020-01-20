@@ -18,26 +18,6 @@
         long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
         if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
 
-/*
-    Entity packet structure
-
-    -------------------------------
-    uint8_t |  N (number of entities)
-    -------------------------------
-    uint8_t |
-       .    |
-       .    |  Each of N uint8_t are
-       .    |  members of EClass struct.
-       N    |
-    -------------------------------
-      BYTES | Some data, each entity
-        .   | from above header is
-        .   | responsible for consuming
-        .   | it.
-        M   |
-    -------------------------------
-*/
-
 static const double PACKETS_FREQ = 1.0;
 static const double TICK_FREQ = 1.0;
 
@@ -95,14 +75,6 @@ void _main_auth()
             closesocket(sock);
             return;
         }
-
-        /*
-            Auth packet structure
-
-            ----------------------------------------------
-             int32_t | ID of newly created Hero_e instance
-            ----------------------------------------------
-        */
 
         Player* player_ptr = Player::create(from, world);
 

@@ -5,7 +5,6 @@
 #include "world.h"
 #include <iostream>
 #include <thread>
-#include <mutex>
 #include "auth.h"
 #include "logging.h"
 #include "eclass.h"
@@ -19,9 +18,36 @@
         long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
         if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
 
-static const double INPUT_FREQ = 0.5;
+const double INPUT_FREQ = 0.5;
+World world;
+SOCKET sock;
 
-static World world;
+volatile bool running = true;
+
+void input_main()
+{
+    int8_t buf[MAX_BUF_SIZE];
+    sockaddr_in addr = SERVER_INPUT_ADDR;
+
+    while (running)
+    {
+        double t0 = glfwGetTime();
+
+        Hero_e* hero_ptr = world.m_heroes.by_index(0);
+        int32_t len = hero_ptr->fill_input_buffer(buf);
+
+        if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
+        {
+            SOCKET_ERR_MSG("Failed to send input to server, exiting input loop");
+            running = false;
+            break;
+        }
+
+        INFO("Sent input to server");
+
+        SLEEP(t0, INPUT_FREQ);
+    }
+}
 
 int main()
 {
@@ -32,7 +58,7 @@ int main()
         return 1;
     }
 
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
     {
         SOCKET_ERR_MSG("Failed to create socket");
@@ -67,14 +93,6 @@ int main()
         SOCKET_ERR_MSG("Failed to connect (recv)");
         return 1;
     }
-
-    /*
-        Auth packet structure
-
-        ----------------------------------------------
-         int32_t | ID of newly created Hero_e instance
-        ----------------------------------------------
-    */
 
     int32_t id = *reinterpret_cast<int32_t*>(buf);
     
@@ -136,32 +154,16 @@ int main()
         }
     });
 
-    while (true)
+    std::thread input_thread(input_main);
+
+    while (running)
     {
         if (recv(sock, reinterpret_cast<char*>(buf), MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
         {
-            SOCKET_ERR_MSG("Failed to receive data");
-            closesocket(sock);
-            return 1;
+            SOCKET_ERR_MSG("Failed to receive data, exiting recv loop");
+            running = false;
+            break;
         }
-
-        /*
-            Sync entity packet structure
-
-            -------------------------------
-             uint8_t |  N (number of entities)
-            -------------------------------
-            struct A | struct A {
-                .    |     uint8_t eclass; // Member of EClass struct
-                .    |     int32_t id;
-                N    | };
-            -------------------------------
-              BYTES  | Data.
-                .    | Each entity
-                .    | is responsible for
-                M    | consuming it.
-            -------------------------------
-        */
 
         int32_t num_ents = *reinterpret_cast<int32_t*>(buf);
 
@@ -241,5 +243,11 @@ int main()
 
         INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
     }
+
+    input_thread.join();
+
+    closesocket(sock);
+    WSACleanup();
+
     return 0;
 }

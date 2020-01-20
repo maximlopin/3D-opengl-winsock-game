@@ -7,26 +7,6 @@
 #include "eclass.h"
 #include "logging.h"
 
-/*
-    Sync entity packet structure
-
-    -------------------------------
-    uint8_t |  N (number of entities)
-    -------------------------------
-    uint8_t |
-       .    |
-       .    |  Each of N uint8_t are
-       .    |  members of EClass struct.
-       N    |
-    -------------------------------
-      BYTES | Some data, each entity
-        .   | from above header is
-        .   | responsible for consuming
-        .   | it.
-        M   |
-    -------------------------------
-*/
-
 static const int32_t MAX_BUF_SIZE = ((2 << 15) - 1);
 static const int32_t MAX_PACKET_SIZE = 160;
 

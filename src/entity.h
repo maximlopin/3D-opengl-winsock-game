@@ -1,6 +1,8 @@
 #ifndef ENTITY_H
 #define ENTITY_H
 
+#include "stdlib.h"
+#include "winsock2.h"
 #include "cglm/cglm.h"
 #include "component.h"
 #include "system.h"
@@ -20,11 +22,22 @@ struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
     Model_c m_model;
     Position_c m_pos;
     Velocity_c m_vel;
-    virtual void fill_buffer(int8_t*) override;
-    virtual void consume_buffer(int8_t*) override;
+    virtual void fill_buffer(int8_t* buf) override;
+    virtual void consume_buffer(int8_t* buf) override;
     virtual int32_t get_buf_len() override;
     virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
+
+    int32_t fill_input_buffer(int8_t* buf)
+    {
+        memcpy(buf, &m_input, sizeof(m_input));
+        return sizeof(m_input);
+    }
+
+    void consume_input_buffer(int8_t* buf)
+    {
+        memcpy(&m_input, buf, sizeof(m_input));
+    }
 };
 
 struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
