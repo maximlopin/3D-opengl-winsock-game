@@ -15,11 +15,10 @@
         double t1 = glfwGetTime(); \
         double dt = (t1 - t0); \
         double sleep_s = (1 / freq) - dt; \
-        long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
-        if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
+        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::seconds(static_cast<long long>(sleep_s))); \
 
 static const double PACKETS_FREQ = 1.0;
-static const double TICK_FREQ = 1.0;
+static const double TICK_FREQ = 20.0;
 
 volatile bool running = true;
 
@@ -133,12 +132,33 @@ void _main_input()
             Hero_e* hero_ptr = world.m_heroes.by_id(hero_id);
             hero_ptr->consume_input_buffer(buf);
 
-            INFO("Received input from " << key << " (success): " << hero_ptr->m_input.cursor_theta);
+            INFO("Received input from " << key << " (success): " << hero_ptr->m_input.cursor_theta << ", " << hero_ptr->m_input.LM_PRESSED << ", " << hero_ptr->m_input.RM_PRESSED);
         }
         else
         {
             INFO("Received input from " << key << " (fail)");
         }
+    }
+}
+
+void _main_game()
+{
+    double last_t = glfwGetTime();
+    while (running)
+    {
+        double t = glfwGetTime();
+        double dt = t - last_t;
+        last_t = t;
+
+        for (int i = 0; i < world.m_heroes.size(); i++)
+        {
+            world.m_heroes.by_index(i)->tick(dt);
+        }
+
+        INFO("Ticked");
+
+        double sleep_s = (1 / TICK_FREQ) - dt;
+        std::this_thread::sleep_for(std::chrono::seconds(static_cast<long long>(sleep_s)));
     }
 }
 
@@ -154,10 +174,12 @@ int main()
     std::thread auth_thread(_main_auth);
     std::thread data_thread(_main_data);
     std::thread input_thread(_main_input);
+    std::thread game_thread(_main_game);
 
     auth_thread.join();
     data_thread.join();
     input_thread.join();
+    game_thread.join();
 
     for (auto keyval : Player::s_players)
     {

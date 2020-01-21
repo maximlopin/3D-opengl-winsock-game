@@ -5,9 +5,9 @@
 #include "stdint.h"
 
 struct Input {
-    double cursor_theta;
-    uint32_t LM_PRESSED;
-    uint32_t RM_PRESSED;
+    double cursor_theta = 0.0;
+    uint32_t LM_PRESSED = 0;
+    uint32_t RM_PRESSED = 0;
 };
 
 void hton_input(Input* in, Input* out);

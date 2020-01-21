@@ -16,31 +16,25 @@ private:
     const int32_t m_id;
 };
 
-struct Hero_e : Entity_e, Sync_s, Tick_s, Render_s {
+struct Hero_e : Entity_e, Sync_s, Tick_s {
     Hero_e(int32_t id);
     Input m_input;
-    Model_c m_model;
     Position_c m_pos;
     Velocity_c m_vel;
+
+#ifdef CLIENT
+    TreeMesh_c m_mesh;
+#endif
+
     virtual void fill_buffer(int8_t* buf) override;
     virtual void consume_buffer(int8_t* buf) override;
     virtual int32_t get_buf_len() override;
-    virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
-
-    int32_t fill_input_buffer(int8_t* buf)
-    {
-        memcpy(buf, &m_input, sizeof(m_input));
-        return sizeof(m_input);
-    }
-
-    void consume_input_buffer(int8_t* buf)
-    {
-        memcpy(&m_input, buf, sizeof(m_input));
-    }
+    int32_t fill_input_buffer(int8_t* buf);
+    void consume_input_buffer(int8_t* buf);
 };
 
-struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
+struct Monster_e : Entity_e, Sync_s, Tick_s {
     Monster_e(int32_t id);
     Model_c m_model;
     Position_c m_pos;
@@ -48,39 +42,34 @@ struct Monster_e : Entity_e, Sync_s, Tick_s, Render_s {
     virtual void fill_buffer(int8_t*) override;
     virtual void consume_buffer(int8_t*) override;
     virtual int32_t get_buf_len() override;
-    virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
 };
 
-struct DroppedItem_e : Entity_e, Sync_s, Tick_s, Render_s {
+struct DroppedItem_e : Entity_e, Sync_s, Tick_s {
     DroppedItem_e(int32_t id);
     Position_c m_pos;
     Model_c m_model;
     virtual void fill_buffer(int8_t*) override;
     virtual void consume_buffer(int8_t*) override;
     virtual int32_t get_buf_len() override;
-    virtual void render(vec3 origin) const override;
     virtual void tick(double dt) override;
 };
 
-struct Prop_e : Entity_e, Render_s {
+struct Prop_e : Entity_e {
     Prop_e(int32_t id);
     Model_c m_model;
     Position_c m_pos;
-    virtual void render(vec3 origin) const override;
 };
 
-struct NPC_e : Entity_e, Render_s {
+struct NPC_e : Entity_e {
     NPC_e(int32_t id);
     Model_c m_model;
     Position_c m_pos;
-    virtual void render(vec3 origin) const override;
 };
 
-struct Portal_e : Entity_e, Render_s {
+struct Portal_e : Entity_e {
     Portal_e(int32_t id);
     Position_c m_pos;
-    virtual void render(vec3 origin) const override;
 };
 
 #endif

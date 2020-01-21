@@ -16,8 +16,7 @@
         double t1 = glfwGetTime(); \
         double dt = (t1 - t0); \
         double sleep_s = (1 / freq) - dt; \
-        long long sleep_ms = static_cast<long long>(sleep_s * 1000); \
-        if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
+        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::seconds(static_cast<long long>(sleep_s))); \
 
 const double INPUT_FREQ = 0.5;
 
@@ -198,12 +197,10 @@ int main()
         return 0;
     }
 
-    Hero_e local_hero(id);
-    world.m_heroes.force_add(id, &local_hero);
-
     INFO("Connected with ID " << id);
 
     GLFWwindow* window = make_window(1280, 720, "My window");
+    Model::init(1280, 720);
 
     glfwSetWindowUserPointer(window, (void*) &world);
 
@@ -250,13 +247,45 @@ int main()
             default:
                 break;
         }
+    }); 
+
+    glfwSetWindowCloseCallback(window, [](GLFWwindow* wnd) {
+        running = false;
     });
+
+    Hero_e local_hero(id);
+    world.m_heroes.force_add(id, &local_hero);
 
     std::thread input_thread(_main_input);
     std::thread data_thread(_main_data);
 
+    glEnable(GL_DEPTH_TEST);
+    glEnable(GL_CULL_FACE);
+
     while(running)
     {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        Hero_e* local_hero_ptr = world.m_heroes.by_index(0);
+
+        vec3 origin;
+        origin[0] = local_hero_ptr->m_pos.pos[0];
+        origin[1] = local_hero_ptr->m_pos.pos[1];
+        origin[2] = local_hero_ptr->m_pos.elevation;
+
+        for (int i = 0; i < world.m_heroes.size(); i++)
+        {
+            Hero_e* hero_ptr = world.m_heroes.by_index(i);
+
+            vec3 pos;
+            pos[0] = hero_ptr->m_pos.pos[0];
+            pos[1] = hero_ptr->m_pos.pos[1];
+            pos[2] = hero_ptr->m_pos.elevation;
+
+            hero_ptr->m_mesh.render(origin, pos);
+        }
+
+        glfwSwapBuffers(window);
         glfwPollEvents();
     }
 

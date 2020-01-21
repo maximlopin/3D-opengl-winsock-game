@@ -43,13 +43,22 @@ void Hero_e::tick(double dt)
         m_vel.vel[1] = -cosf(m_input.cursor_theta) * m_vel.min * m_input.LM_PRESSED;
     }
 
+    INFO("vel[0]: " << m_vel.vel[0]);
+    INFO("vel[1]: " << m_vel.vel[1]);
+
     m_pos.pos[0] += m_vel.vel[0] * dt;
     m_pos.pos[1] += m_vel.vel[1] * dt;
 }
 
-void Hero_e::render(vec3 origin) const
+int32_t Hero_e::fill_input_buffer(int8_t* buf)
 {
-    
+    memcpy(buf, &m_input, sizeof(m_input));
+    return sizeof(m_input);
+}
+
+void Hero_e::consume_input_buffer(int8_t* buf)
+{
+    memcpy(&m_input, buf, sizeof(m_input));
 }
 
 Monster_e::Monster_e(int32_t id) : Entity_e(id)
@@ -75,11 +84,6 @@ int32_t Monster_e::get_buf_len()
 void Monster_e::tick(double dt)
 {
 
-}
-
-void Monster_e::render(vec3 origin) const
-{
-    
 }
 
 DroppedItem_e::DroppedItem_e(int32_t id) : Entity_e(id)
@@ -108,27 +112,12 @@ void DroppedItem_e::tick(double dt)
 
 }
 
-void DroppedItem_e::render(vec3 origin) const
-{
-    
-}
-
 NPC_e::NPC_e(int32_t id) : Entity_e(id)
 {
 
 }
 
-void NPC_e::render(vec3 origin) const
-{
-    
-}
-
 Portal_e::Portal_e(int32_t id) : Entity_e(id)
 {
 
-}
-
-void Portal_e::render(vec3 origin) const
-{
-    
 }
