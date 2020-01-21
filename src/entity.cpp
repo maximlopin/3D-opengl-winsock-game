@@ -34,17 +34,19 @@ void Hero_e::tick(double dt)
 {
     if (m_input.RM_PRESSED)
     {
-        m_vel.vel[0] = sinf(m_input.cursor_theta) * m_vel.max * m_input.RM_PRESSED;
-        m_vel.vel[1] = -cosf(m_input.cursor_theta) * m_vel.max * m_input.RM_PRESSED;
+        m_vel.vel[0] = sinf(m_input.cursor_theta) * m_vel.max;
+        m_vel.vel[1] = -cosf(m_input.cursor_theta) * m_vel.max;
     }
     else if (m_input.LM_PRESSED)
     {
-        m_vel.vel[0] = sinf(m_input.cursor_theta) * m_vel.min * m_input.LM_PRESSED;
-        m_vel.vel[1] = -cosf(m_input.cursor_theta) * m_vel.min * m_input.LM_PRESSED;
+        m_vel.vel[0] = sinf(m_input.cursor_theta) * m_vel.min;
+        m_vel.vel[1] = -cosf(m_input.cursor_theta) * m_vel.min;
     }
-
-    INFO("vel[0]: " << m_vel.vel[0]);
-    INFO("vel[1]: " << m_vel.vel[1]);
+    else
+    {
+        m_vel.vel[0] = 0.0f;
+        m_vel.vel[1] = 0.0f;
+    }
 
     m_pos.pos[0] += m_vel.vel[0] * dt;
     m_pos.pos[1] += m_vel.vel[1] * dt;

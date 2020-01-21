@@ -15,14 +15,16 @@
         double t1 = glfwGetTime(); \
         double dt = (t1 - t0); \
         double sleep_s = (1 / freq) - dt; \
-        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::seconds(static_cast<long long>(sleep_s))); \
+        double sleep_ms = 1000 * sleep_s; \
+        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(sleep_ms))); \
 
-static const double PACKETS_FREQ = 1.0;
-static const double TICK_FREQ = 20.0;
+const double PACKETS_FREQ = 20.0;
+const double TICK_FREQ = 20.0;
 
 volatile bool running = true;
 
-static World world;
+World world;
+std::mutex world_mx;
 
 /* Iterates through players and sends them entity data */
 void _main_data()
@@ -77,10 +79,11 @@ void _main_auth()
             return;
         }
 
+        world_mx.lock();
         Player* player_ptr = Player::create(from, world);
 
         int32_t id = player_ptr == nullptr ? -1 : player_ptr->m_hero_id;
-
+        world_mx.unlock();
         if (sendto(sock, reinterpret_cast<char*>(&id), sizeof(int32_t), 0, reinterpret_cast<sockaddr*>(&from), sizeof(sockaddr)) == SOCKET_ERROR)
         {
             SOCKET_ERR_MSG("Failed to send ID");
@@ -125,7 +128,7 @@ void _main_input()
         }
 
         std::string key = addr_to_string(from);
-
+        world_mx.lock();
         if (Player::s_players.find(key) != Player::s_players.end())
         {
             int32_t hero_id = Player::s_players[key]->m_hero_id;
@@ -138,32 +141,35 @@ void _main_input()
         {
             INFO("Received input from " << key << " (fail)");
         }
+        world_mx.unlock();
     }
 }
 
 void _main_game()
 {
-    double last_t = glfwGetTime();
+    double dt = 0.0;
+
     while (running)
     {
-        double t = glfwGetTime();
-        double dt = t - last_t;
-        last_t = t;
+        double t0 = glfwGetTime();
 
+        world_mx.lock();
         for (int i = 0; i < world.m_heroes.size(); i++)
         {
             world.m_heroes.by_index(i)->tick(dt);
         }
+        world_mx.unlock();
 
-        INFO("Ticked");
-
-        double sleep_s = (1 / TICK_FREQ) - dt;
-        std::this_thread::sleep_for(std::chrono::seconds(static_cast<long long>(sleep_s)));
+        long long sleep_ms = static_cast<long long>(1000 * (1.0 / TICK_FREQ - dt));
+        std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
+        dt = glfwGetTime() - t0;
     }
 }
 
 int main()
 {
+    glfwInit();
+
     WSADATA wsa;
     if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
     {

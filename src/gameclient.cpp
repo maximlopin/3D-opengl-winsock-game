@@ -16,9 +16,10 @@
         double t1 = glfwGetTime(); \
         double dt = (t1 - t0); \
         double sleep_s = (1 / freq) - dt; \
-        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::seconds(static_cast<long long>(sleep_s))); \
+        double sleep_ms = 1000 * sleep_s; \
+        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(sleep_ms))); \
 
-const double INPUT_FREQ = 0.5;
+const double INPUT_FREQ = 20.0;
 
 volatile bool running = true;
 SOCKET sock;
