@@ -5,6 +5,7 @@
 #include "world.h"
 #include <iostream>
 #include <thread>
+#include <mutex>
 #include "auth.h"
 #include "logging.h"
 #include "eclass.h"
@@ -19,150 +20,23 @@
         if (sleep_ms > 0) std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms)); \
 
 const double INPUT_FREQ = 0.5;
-World world;
-SOCKET sock;
 
 volatile bool running = true;
+SOCKET sock;
+World world;
 
-void input_main()
+/* Receives entity data from server */
+void _main_data()
 {
-    int8_t buf[MAX_BUF_SIZE];
-    sockaddr_in addr = SERVER_INPUT_ADDR;
-
-    while (running)
-    {
-        double t0 = glfwGetTime();
-
-        Hero_e* hero_ptr = world.m_heroes.by_index(0);
-        int32_t len = hero_ptr->fill_input_buffer(buf);
-
-        if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
-        {
-            SOCKET_ERR_MSG("Failed to send input to server, exiting input loop");
-            running = false;
-            break;
-        }
-
-        INFO("Sent input to server");
-
-        SLEEP(t0, INPUT_FREQ);
-    }
-}
-
-int main()
-{
-    WSADATA wsa;
-    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
-    {
-        fprintf(stderr, "Failed to initialize WSA\n");
-        return 1;
-    }
-
-    sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock == INVALID_SOCKET)
-    {
-        SOCKET_ERR_MSG("Failed to create socket");
-        return 1;
-    }
-
-    sockaddr_in addr;
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-    addr.sin_port = 0;
-
-    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == INVALID_SOCKET)
-    {
-        SOCKET_ERR_MSG("Failed to bind socket");
-        closesocket(sock);
-        return 1;
-    }
-
-    sockaddr_in auth_addr = SERVER_AUTH_ADDR;
-
-    char blank_buf[1] = { 0 };
-    if (sendto(sock, blank_buf, 1, 0, reinterpret_cast<sockaddr*>(&auth_addr), sizeof(sockaddr)) == SOCKET_ERROR)
-    {
-        SOCKET_ERR_MSG("Failed to connect (sendto)");
-        return 1;
-    }
-
     int8_t buf[MAX_PACKET_SIZE];
-
-    if (recv(sock, reinterpret_cast<char*>(buf), sizeof(int32_t), 0) == SOCKET_ERROR)
-    {
-        SOCKET_ERR_MSG("Failed to connect (recv)");
-        return 1;
-    }
-
-    int32_t id = *reinterpret_cast<int32_t*>(buf);
-    
-    if (id == -1)
-    {
-        INFO("Server returned ID = -1");
-        closesocket(sock);
-        return 0;
-    }
-
-    Hero_e local_hero(id);
-
-    INFO("Connected with ID " << id);
-
-    GLFWwindow* window = make_window(1280, 720, "My window");
-
-    glfwSetWindowUserPointer(window, (void*) &local_hero.m_input);
-
-    glfwSetWindowSizeCallback(window, [](GLFWwindow* wnd, int w, int h) {
-        glViewport(0, 0, w, h);
-        Model::update_perspective(w, h);
-    });
-
-    glfwSetCursorPosCallback(window, [](GLFWwindow* wnd, double x, double y) {
-        int w, h;
-        glfwGetWindowSize(wnd, &w, &h);
-
-        double cx = static_cast<double>(w) / 2;
-        double cy = static_cast<double>(h) / 2;
-
-        Input* p_input = reinterpret_cast<Input*>(glfwGetWindowUserPointer(wnd));
-        p_input->cursor_theta = atan2l((x - cx), (y - cy));
-    });
-
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* wnd, int key, int action, int mods) {
-        bool state;
-
-        Input* p_input = reinterpret_cast<Input*>(glfwGetWindowUserPointer(wnd));
-
-        if (action == GLFW_PRESS)
-            state = true;
-        else if (action == GLFW_RELEASE)
-            state = false;
-        else
-            return;
-        
-        switch (key)
-        {
-            case GLFW_MOUSE_BUTTON_LEFT:
-                p_input->LM_PRESSED = state;
-                break;
-
-            case GLFW_MOUSE_BUTTON_RIGHT:
-                p_input->RM_PRESSED = state;
-                break;
-
-            default:
-                break;
-        }
-    });
-
-    std::thread input_thread(input_main);
 
     while (running)
     {
         if (recv(sock, reinterpret_cast<char*>(buf), MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
         {
-            SOCKET_ERR_MSG("Failed to receive data, exiting recv loop");
+            SOCKET_ERR_MSG("Failed to receive data");
             running = false;
-            break;
+            return;
         }
 
         int32_t num_ents = *reinterpret_cast<int32_t*>(buf);
@@ -236,18 +110,161 @@ int main()
                     }
                 }
                 break;
-
                 WARNING("Received invalid EClass");
             }
         }
-
         INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
+    }
+}
+
+/* Sends input to server */
+void _main_input()
+{
+    sockaddr_in input_addr = SERVER_INPUT_ADDR;
+
+    int8_t buf[MAX_PACKET_SIZE];
+
+    while (running)
+    {
+        double t0 = glfwGetTime();
+
+        Hero_e* hero_ptr = world.m_heroes.by_index(0);
+        int32_t len = hero_ptr->fill_input_buffer(buf);
+
+        if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&input_addr), sizeof(sockaddr)) == SOCKET_ERROR)
+        {
+            SOCKET_ERR_MSG("Failed to send");
+            running = false;
+            return;
+        }
+
+        INFO("Sent input: " << hero_ptr->m_input.cursor_theta);
+
+        SLEEP(t0, INPUT_FREQ);
+    }
+}
+
+int main()
+{
+    WSADATA wsa;
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0)
+    {
+        fprintf(stderr, "Failed to initialize WSA\n");
+        return 1;
+    }
+
+    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET)
+    {
+        SOCKET_ERR_MSG("Failed to create socket");
+        return 1;
+    }
+
+    sockaddr_in addr;
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    addr.sin_port = 0;
+
+    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == INVALID_SOCKET)
+    {
+        SOCKET_ERR_MSG("Failed to bind socket");
+        closesocket(sock);
+        return 1;
+    }
+
+    sockaddr_in auth_addr = SERVER_AUTH_ADDR;
+
+    char blank_buf[1] = { 0 };
+    if (sendto(sock, blank_buf, 1, 0, reinterpret_cast<sockaddr*>(&auth_addr), sizeof(sockaddr)) == SOCKET_ERROR)
+    {
+        SOCKET_ERR_MSG("Failed to connect (sendto)");
+        return 1;
+    }
+
+    int8_t buf[MAX_PACKET_SIZE];
+
+    if (recv(sock, reinterpret_cast<char*>(buf), sizeof(int32_t), 0) == SOCKET_ERROR)
+    {
+        SOCKET_ERR_MSG("Failed to connect (recv)");
+        return 1;
+    }
+
+    int32_t id = *reinterpret_cast<int32_t*>(buf);
+    
+    if (id == -1)
+    {
+        INFO("Server returned ID = -1");
+        closesocket(sock);
+        return 0;
+    }
+
+    Hero_e local_hero(id);
+    world.m_heroes.force_add(id, &local_hero);
+
+    INFO("Connected with ID " << id);
+
+    GLFWwindow* window = make_window(1280, 720, "My window");
+
+    glfwSetWindowUserPointer(window, (void*) &world);
+
+    glfwSetWindowSizeCallback(window, [](GLFWwindow* wnd, int w, int h) {
+        glViewport(0, 0, w, h);
+        Model::update_perspective(w, h);
+    });
+
+    glfwSetCursorPosCallback(window, [](GLFWwindow* wnd, double x, double y) {
+        int w, h;
+        glfwGetWindowSize(wnd, &w, &h);
+
+        double cx = static_cast<double>(w) / 2;
+        double cy = static_cast<double>(h) / 2;
+
+        World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
+        Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
+        hero_ptr->m_input.cursor_theta = atan2l((x - cx), (y - cy));
+    });
+
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* wnd, int key, int action, int mods) {
+        bool state;
+
+        World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
+        Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
+
+        if (action == GLFW_PRESS)
+            state = true;
+        else if (action == GLFW_RELEASE)
+            state = false;
+        else
+            return;
+        
+        switch (key)
+        {
+            case GLFW_MOUSE_BUTTON_LEFT:
+                hero_ptr->m_input.LM_PRESSED = state;
+                break;
+
+            case GLFW_MOUSE_BUTTON_RIGHT:
+                hero_ptr->m_input.RM_PRESSED = state;
+                break;
+
+            default:
+                break;
+        }
+    });
+
+    std::thread input_thread(_main_input);
+    std::thread data_thread(_main_data);
+
+    while(running)
+    {
+        glfwPollEvents();
     }
 
     input_thread.join();
+    data_thread.join();
 
-    closesocket(sock);
     WSACleanup();
+    glfwTerminate();
 
     return 0;
 }

@@ -21,6 +21,8 @@
 static const double PACKETS_FREQ = 1.0;
 static const double TICK_FREQ = 1.0;
 
+volatile bool running = true;
+
 static World world;
 
 /* Iterates through players and sends them entity data */
@@ -35,7 +37,7 @@ void _main_data()
         return;
     }
 
-    while (true)
+    while (running)
     {
         double t0 = glfwGetTime();
         Player::distribute_packets(sock);
@@ -90,6 +92,56 @@ void _main_auth()
     closesocket(sock);
 }
 
+/* Receives input from players and applies it to corresponding heroes */
+void _main_input()
+{
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET)
+    {
+        SOCKET_ERR_MSG("Failed to create socket");
+        return;
+    }
+
+    sockaddr_in addr = SERVER_INPUT_ADDR
+
+    if (bind(sock, reinterpret_cast<sockaddr*>(&addr), sizeof(sockaddr)) == SOCKET_ERROR)
+    {
+        SOCKET_ERR_MSG("Failed to bind socket");
+        closesocket(sock);
+        return;
+    }
+
+    int8_t buf[MAX_PACKET_SIZE];
+
+    while (true)
+    {
+        sockaddr_in from;
+        int fromlen = sizeof(sockaddr);
+
+        if (recvfrom(sock, reinterpret_cast<char*>(buf), MAX_PACKET_SIZE, 0, reinterpret_cast<sockaddr*>(&from), &fromlen) == SOCKET_ERROR)
+        {
+            SOCKET_ERR_MSG("Failed to receive data");
+            closesocket(sock);
+            return;
+        }
+
+        std::string key = addr_to_string(from);
+
+        if (Player::s_players.find(key) != Player::s_players.end())
+        {
+            int32_t hero_id = Player::s_players[key]->m_hero_id;
+            Hero_e* hero_ptr = world.m_heroes.by_id(hero_id);
+            hero_ptr->consume_input_buffer(buf);
+
+            INFO("Received input from " << key << " (success): " << hero_ptr->m_input.cursor_theta);
+        }
+        else
+        {
+            INFO("Received input from " << key << " (fail)");
+        }
+    }
+}
+
 int main()
 {
     WSADATA wsa;
@@ -101,9 +153,11 @@ int main()
 
     std::thread auth_thread(_main_auth);
     std::thread data_thread(_main_data);
+    std::thread input_thread(_main_input);
 
     auth_thread.join();
     data_thread.join();
+    input_thread.join();
 
     for (auto keyval : Player::s_players)
     {

@@ -34,7 +34,6 @@ struct Player {
     Player(sockaddr_in addr, World& world);
     ~Player();
     sockaddr_in m_addr;
-    Input m_input;
     int32_t m_hero_id;
     World* m_world_ptr;
     static Player* create(sockaddr_in addr, World& world);
