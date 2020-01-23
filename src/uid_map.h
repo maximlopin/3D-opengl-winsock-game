@@ -27,7 +27,7 @@ struct server_emap {
             m_free_ids[i] = (size - i - 1);
         }
 
-        T* items = (T*) calloc(size, sizeof(T));
+        m_items = (T*) calloc(size, sizeof(T));
     }
 
     ~server_emap()
@@ -154,7 +154,7 @@ struct client_emap {
             m_itoid[i] = -1;
         }
 
-        T* items = (T*) calloc(size, sizeof(T));
+        m_items = (T*) calloc(size, sizeof(T));
     }
 
     ~client_emap()
