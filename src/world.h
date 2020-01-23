@@ -19,17 +19,33 @@ std::string addr_to_string(sockaddr_in& addr);
 struct World {
     World();
 
-    /* Sync-server */
-    uid_map<Hero_e> m_heroes = uid_map<Hero_e>(MAX_ENTS_PER_CLASS);
-    uid_map<Monster_e> m_monsters = uid_map<Monster_e>(MAX_ENTS_PER_CLASS);
-    uid_map<DroppedItem_e> m_dropped_items = uid_map<DroppedItem_e>(MAX_ENTS_PER_CLASS);
+#ifdef SERVER
+    /* Sync */
+    server_emap<Hero_e> m_heroes = server_emap<Hero_e>(MAX_ENTS_PER_CLASS);
+    server_emap<Monster_e> m_monsters = server_emap<Monster_e>(MAX_ENTS_PER_CLASS);
+    server_emap<DroppedItem_e> m_dropped_items = server_emap<DroppedItem_e>(MAX_ENTS_PER_CLASS);
 
-    /* Non-Sync-server */
-    uid_map<Prop_e> m_props = uid_map<Prop_e>(MAX_ENTS_PER_CLASS);
-    uid_map<NPC_e> m_npcs = uid_map<NPC_e>(MAX_ENTS_PER_CLASS);
-    uid_map<Portal_e> m_portals = uid_map<Portal_e>(MAX_ENTS_PER_CLASS);
+    /* Non-Sync */
+    server_emap<Prop_e> m_props = server_emap<Prop_e>(MAX_ENTS_PER_CLASS);
+    server_emap<NPC_e> m_npcs = server_emap<NPC_e>(MAX_ENTS_PER_CLASS);
+    server_emap<Portal_e> m_portals = server_emap<Portal_e>(MAX_ENTS_PER_CLASS);
+#endif
+
+#ifdef CLIENT
+    /* Sync */
+    client_emap<Hero_e> m_heroes = client_emap<Hero_e>(MAX_ENTS_PER_CLASS);
+    client_emap<Monster_e> m_monsters = client_emap<Monster_e>(MAX_ENTS_PER_CLASS);
+    client_emap<DroppedItem_e> m_dropped_items = client_emap<DroppedItem_e>(MAX_ENTS_PER_CLASS);
+
+    /* Non-Sync */
+    client_emap<Prop_e> m_props = client_emap<Prop_e>(MAX_ENTS_PER_CLASS);
+    client_emap<NPC_e> m_npcs = client_emap<NPC_e>(MAX_ENTS_PER_CLASS);
+    client_emap<Portal_e> m_portals = client_emap<Portal_e>(MAX_ENTS_PER_CLASS);
+#endif
+
 };
 
+#ifdef SERVER
 struct Player {
     Player(sockaddr_in addr, World& world);
     ~Player();
@@ -46,7 +62,7 @@ struct Player {
             Player* player_ptr = keyval.second;
             World* world_ptr = player_ptr->m_world_ptr;
 
-            INFO("Sending packets to " << keyval.first);
+            // INFO("Sending packets to " << keyval.first);
 
             Sync_s::begin(sock, &(player_ptr->m_addr));
 
@@ -78,5 +94,6 @@ struct Player {
         }       
     }
 };
+#endif
 
 #endif

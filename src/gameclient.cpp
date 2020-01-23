@@ -64,7 +64,7 @@ void _main_data()
                     {
                         Hero_e hero(id);
                         hero.consume_buffer(buf + edata_offset);
-                        world.m_heroes.force_add(id, &hero);
+                        world.m_heroes.set(id, &hero);
                         edata_offset += hero.get_buf_len();
                     }
                     else
@@ -82,7 +82,7 @@ void _main_data()
                     {
                         Monster_e monster(id);
                         monster.consume_buffer(buf + edata_offset);
-                        world.m_monsters.force_add(id, &monster);
+                        world.m_monsters.set(id, &monster);
                         edata_offset += monster.get_buf_len();
                     }
                     else
@@ -100,7 +100,7 @@ void _main_data()
                     {
                         DroppedItem_e item(id);
                         item.consume_buffer(buf + edata_offset);
-                        world.m_dropped_items.force_add(id, &item);
+                        world.m_dropped_items.set(id, &item);
                         edata_offset += item.get_buf_len();
                     }
                     else
@@ -113,7 +113,7 @@ void _main_data()
                 WARNING("Received invalid EClass");
             }
         }
-        INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
+        // INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
     }
 }
 
@@ -138,7 +138,7 @@ void _main_input()
             return;
         }
 
-        INFO("Sent input: " << hero_ptr->m_input.cursor_theta);
+        // INFO("Sent input: " << hero_ptr->m_input.cursor_theta);
 
         SLEEP(t0, INPUT_FREQ);
     }
@@ -255,7 +255,7 @@ int main()
     });
 
     Hero_e local_hero(id);
-    world.m_heroes.force_add(id, &local_hero);
+    world.m_heroes.set(id, &local_hero);
 
     std::thread input_thread(_main_input);
     std::thread data_thread(_main_data);

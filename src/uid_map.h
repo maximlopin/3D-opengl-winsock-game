@@ -4,168 +4,239 @@
 #include "stdlib.h"
 #include "stdint.h"
 
-struct filled_array {
-    filled_array(int32_t init_size, int32_t fill) : m_size(init_size)
-    {
-        m_array = (int32_t*) calloc(init_size, sizeof(int32_t));
-        for (int i = 0; i < init_size; i++)
-        {
-            m_array[i] = fill;
-        }
-    }
-
-    int32_t& operator [](int32_t i)
-    {
-        return m_array[i];
-    }
-    
-    ~filled_array()
-    {
-        free(m_array);
-    }
-
-    const int32_t m_size;
-    int32_t* m_array;
-};
-
-struct index_set {
-    index_set(int32_t init_size) : m_size(init_size)
-    {
-        m_array = (int32_t*) calloc(init_size, sizeof(int32_t));
-        for (int i = 0; i < init_size; i++)
-        {
-            m_array[i] = init_size - i - 1;
-        }
-    }
-
-    ~index_set()
-    {
-        free(m_array);
-    }
-
-    void put(int32_t i)
-    {
-        m_array[m_size++] = i;
-    }
-
-    int32_t pop()
-    {
-        return m_array[--m_size];
-    }
-
-    int32_t m_size;
-    int32_t* m_array;
-};
-
+/*
+    Contiguous storage where each item has a unique ID.
+    The ID doesn't change for an entity unless you call
+    del(int32_t id), but the position in the contiguous memory
+    array can change for an item.
+*/
 template<typename T>
-struct uid_map {
-    uid_map(int32_t init_size) : m_init_size(init_size)
+struct server_emap {
+    server_emap(int32_t size)
     {
-        m_array = (T*) calloc(init_size, sizeof(T));
+        m_num_ids = size;
+
+        m_idtoi = (int32_t*) calloc(size, sizeof(int32_t));
+        m_itoid = (int32_t*) calloc(size, sizeof(int32_t));
+        m_free_ids = (int32_t*) calloc(size, sizeof(int32_t));
+
+        for (int i = 0; i < size; i++)
+        {
+            m_idtoi[i] = -1;
+            m_itoid[i] = -1;
+            m_free_ids[i] = (size - i - 1);
+        }
+
+        T* items = (T*) calloc(size, sizeof(T));
+    }
+
+    ~server_emap()
+    {
+        free(m_idtoi);
+        free(m_itoid);
+        free(m_free_ids);
+        free(m_items);
     }
 
     T* by_id(int32_t id)
     {
-        if (m_idtoi[id] != -1)
+        int32_t index = m_idtoi[id];
+        if (index == -1)
         {
-            return &(m_array[m_idtoi[id]]);
+            return nullptr;
         }
-        return nullptr;
+        return by_index(index);
     }
 
-    T* by_index(int32_t i)
+    T* by_index(int32_t index)
     {
-        return &(m_array[i]);
+        return &m_items[index];
     }
 
-    ~uid_map()
+    int32_t get_free_id()
     {
-        free(m_array);
+        return m_free_ids[--m_num_ids];
     }
 
-    /* Returns id */
-    int32_t push(T* item_ptr)
+    void add_free_id(int32_t id)
     {
-        int32_t id = m_free_ids.pop();
-        m_idtoi[id] = m_size;
-        m_itoid[m_size] = id;
-        memcpy(&(m_array[m_size++]), item_ptr, sizeof(T));
-        return id;
-    }
-
-    void force_add(int32_t id, T* item_ptr)
-    {
-        m_idtoi[id] = m_size;
-        m_itoid[m_size++] = id;
-        set(id, item_ptr);
-    }
-
-    void force_del(int32_t id)
-    {
-        memcpy(&(m_array[m_idtoi[id]]), &(m_array[--m_size]), sizeof(T));
-        m_idtoi[m_itoid[m_size]] = m_idtoi[id];
-    }
-
-    int32_t new_id()
-    {
-        int32_t id = m_free_ids.pop();
-        m_idtoi[id] = m_size;
-        m_itoid[m_size++] = id;
-        return id;
+        m_free_ids[m_num_ids++] = id;
     }
 
     void set(int32_t id, T* item_ptr)
     {
-        memcpy(&(m_array[m_idtoi[id]]), item_ptr, sizeof(T));
+        int32_t index = m_size++;
+        assign(index, id);
+        memcpy(&m_items[index], item_ptr, sizeof(T)); // use of deleted operator: m_items[index] = *item_ptr;
     }
 
-    /* Deletes by static index */
+    void add(T* item_ptr)
+    {
+        int32_t index = m_size++;
+        int32_t id = get_free_id();
+        assign(index, id);
+        m_items[index] = *item_ptr;
+    }
+
     void del(int32_t id)
     {
-        m_free_ids.put(id);
-        memcpy(&(m_array[m_idtoi[id]]), &(m_array[--m_size]), sizeof(T));
-        m_idtoi[m_itoid[m_size]] = m_idtoi[id];
+        int32_t index = m_idtoi[id];
+        int32_t last_index = (m_size - 1);
+        swap(index, last_index);
+        pop();
     }
 
-    int32_t itoid(int32_t i)
+    void swap(int32_t index1, int32_t index2)
     {
-        return m_itoid[i];
+        int32_t id1 = m_itoid[index1];
+        int32_t id2 = m_itoid[index2];
+        
+        /* Actual swap */
+        T item = m_items[index1];
+        memcpy(&m_items[index1], &m_items[index2], sizeof(T)); // use of deleted operator: m_items[index1] = m_items[index2];
+        memcpy(&m_items[index2], &item, sizeof(T)); // use of deleted operator: m_items[index2] = item;
+
+        /* Fix ids and indices */
+        assign(index1, id2);
+        assign(index2, id1);
+    }
+
+    void pop()
+    {
+        int32_t last_index = (m_size - 1);
+        int32_t last_id = m_itoid[last_index];
+
+        m_itoid[last_index] = -1;
+        m_idtoi[last_id] = -1;
+
+        add_free_id(last_id);
+
+        m_size--;
+    }
+
+    void assign(int32_t index, int32_t id)
+    {
+        m_idtoi[id] = index;
+        m_itoid[index] = id;
     }
 
     int32_t size()
     {
         return m_size;
     }
-private:
-    const int32_t m_init_size;
 
-    T* m_array;
     int32_t m_size = 0;
 
-    index_set m_free_ids = index_set(m_init_size);
-    filled_array m_idtoi = filled_array(m_init_size, -1);
-    filled_array m_itoid = filled_array(m_init_size, -1);
+    int32_t* m_free_ids;
+    int32_t m_num_ids;
+
+    int32_t* m_idtoi;
+    int32_t* m_itoid;
+
+    T* m_items;
 };
 
+/*
+    client_emap is only different from server_emap by not keeping
+    track of free IDs. IDs are to be received from server when it
+    sends entity packets.
+*/
 template<typename T>
-struct uid_array {
-    uid_array(int32_t init_size)
+struct client_emap {
+    client_emap(int32_t size)
     {
-        m_array = (T*) calloc(init_size, sizeof(T));
+        m_idtoi = (int32_t*) calloc(size, sizeof(int32_t));
+        m_itoid = (int32_t*) calloc(size, sizeof(int32_t));
+
+        for (int i = 0; i < size; i++)
+        {
+            m_idtoi[i] = -1;
+            m_itoid[i] = -1;
+        }
+
+        T* items = (T*) calloc(size, sizeof(T));
     }
 
-    T& operator [](int32_t i)
+    ~client_emap()
     {
-        return (T&) m_array[i];
+        free(m_idtoi);
+        free(m_itoid);
+        free(m_items);
     }
 
-    ~uid_array()
+    T* by_id(int32_t id)
     {
-        free(m_array);
+        int32_t index = m_idtoi[id];
+        if (index == -1)
+        {
+            return nullptr;
+        }
+        return by_index(index);
     }
 
-private:
-    T* m_array;
+    T* by_index(int32_t index)
+    {
+        return &m_items[index];
+    }
+
+    void set(int32_t id, T* item_ptr)
+    {
+        int32_t index = m_size++;
+        assign(index, id);
+        memcpy(&m_items[index], item_ptr, sizeof(T)); // use of deleted operator: m_items[index] = *item_ptr;
+    }
+
+    void del(int32_t id)
+    {
+        int32_t index = m_idtoi[id];
+        int32_t last_index = (m_size - 1);
+        swap(index, last_index);
+        pop();
+    }
+
+    void swap(int32_t index1, int32_t index2)
+    {
+        int32_t id1 = m_itoid[index1];
+        int32_t id2 = m_itoid[index2];
+        
+        /* Actual swap */
+        T item = m_items[index1];
+        memcpy(&m_items[index1], &m_items[index2], sizeof(T)); // use of deleted operator: m_items[index1] = m_items[index2];
+        memcpy(&m_items[index2], &item, sizeof(T)); // use of deleted operator: m_items[index2] = item;
+
+        /* Fix ids and indices */
+        assign(index1, id2);
+        assign(index2, id1);
+    }
+
+    void pop()
+    {
+        int32_t last_index = (m_size - 1);
+        int32_t last_id = m_itoid[last_index];
+
+        m_itoid[last_index] = -1;
+        m_idtoi[last_id] = -1;
+
+        m_size--;
+    }
+
+    void assign(int32_t index, int32_t id)
+    {
+        m_idtoi[id] = index;
+        m_itoid[index] = id;
+    }
+
+    int32_t size()
+    {
+        return m_size;
+    }
+
+    int32_t m_size = 0;
+
+    int32_t* m_idtoi;
+    int32_t* m_itoid;
+
+    T* m_items;
 };
 
 #endif

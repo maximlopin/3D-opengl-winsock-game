@@ -41,7 +41,9 @@ void _main_data()
     while (running)
     {
         double t0 = glfwGetTime();
+        world_mx.lock();
         Player::distribute_packets(sock);
+        world_mx.unlock();
         SLEEP(t0, PACKETS_FREQ);
     }
 }
@@ -135,11 +137,11 @@ void _main_input()
             Hero_e* hero_ptr = world.m_heroes.by_id(hero_id);
             hero_ptr->consume_input_buffer(buf);
 
-            INFO("Received input from " << key << " (success): " << hero_ptr->m_input.cursor_theta << ", " << hero_ptr->m_input.LM_PRESSED << ", " << hero_ptr->m_input.RM_PRESSED);
+            // INFO("Received input from " << key << " (success): " << hero_ptr->m_input.cursor_theta << ", " << hero_ptr->m_input.LM_PRESSED << ", " << hero_ptr->m_input.RM_PRESSED);
         }
         else
         {
-            INFO("Received input from " << key << " (fail)");
+            WARNING("Received input from an unconnected address");
         }
         world_mx.unlock();
     }

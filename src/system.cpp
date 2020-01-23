@@ -29,7 +29,7 @@ void Sync_s::dispatch()
 
     sendto(s_sock, reinterpret_cast<char*>(s_buf), offset, 0, (sockaddr*) s_address_ptr, sizeof(sockaddr));
 
-    INFO("Dispatched a packet of size " << offset << " (" << static_cast<int>(s_num_ents) << " entities)");
+    // INFO("Dispatched a packet of size " << offset << " (" << static_cast<int>(s_num_ents) << " entities)");
 
     s_einfo_len = 0;
     s_edata_len = 0;

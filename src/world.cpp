@@ -18,9 +18,10 @@ World::World()
 
 }
 
+#ifdef SERVER
 Player::Player(sockaddr_in addr, World& world)
 {
-    int32_t hero_id = world.m_heroes.new_id();
+    int32_t hero_id = world.m_heroes.get_free_id();
 
     Hero_e hero(hero_id);
 
@@ -57,3 +58,4 @@ Player* Player::create(sockaddr_in addr, World& world)
 }
 
 std::unordered_map<std::string, Player*> Player::s_players = { };
+#endif
