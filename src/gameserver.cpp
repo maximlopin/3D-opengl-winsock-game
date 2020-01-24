@@ -18,35 +18,13 @@
         double sleep_ms = 1000 * sleep_s; \
         if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(sleep_ms))); \
 
-const double PACKETS_FREQ = 20.0;
+/* Packets are sent with this frequency as well */
 const double TICK_FREQ = 20.0;
 
 volatile bool running = true;
 
 World world;
 std::mutex world_mx;
-
-/* Iterates through players and sends them entity data */
-void _main_data()
-{
-    static char buf[MAX_BUFFER];
-
-    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
-    if (sock == INVALID_SOCKET)
-    {
-        SOCKET_ERR_MSG("Failed to create socket");
-        return;
-    }
-
-    while (running)
-    {
-        double t0 = glfwGetTime();
-        world_mx.lock();
-        Player::distribute_packets(sock);
-        world_mx.unlock();
-        SLEEP(t0, PACKETS_FREQ);
-    }
-}
 
 /* Adds new players to world for new connections */
 void _main_auth()
@@ -149,6 +127,13 @@ void _main_input()
 
 void _main_game()
 {
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
+    if (sock == INVALID_SOCKET)
+    {
+        SOCKET_ERR_MSG("Failed to create socket");
+        return;
+    }
+
     double dt = 0.0;
 
     while (running)
@@ -156,11 +141,17 @@ void _main_game()
         double t0 = glfwGetTime();
 
         world_mx.lock();
+
+        /* Tick */
         for (int i = 0; i < world.m_heroes.size(); i++)
         {
             world.m_heroes.by_index(i)->tick(dt);
         }
-        world_mx.unlock();
+
+        /* Send packets */
+        Player::distribute_packets(sock);
+
+        world_mx.unlock();    
 
         long long sleep_ms = static_cast<long long>(1000 * (1.0 / TICK_FREQ - dt));
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));
@@ -180,12 +171,10 @@ int main()
     }
 
     std::thread auth_thread(_main_auth);
-    std::thread data_thread(_main_data);
     std::thread input_thread(_main_input);
     std::thread game_thread(_main_game);
 
     auth_thread.join();
-    data_thread.join();
     input_thread.join();
     game_thread.join();
 

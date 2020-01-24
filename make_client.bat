@@ -1,1 +1,1 @@
-g++ glew32.dll glfw3.dll src/opengl.c src/gameclient.cpp src/entity.cpp src/model.cpp src/world.cpp src/input.cpp src/system.cpp src/component.cpp -lopengl32 -lws2_32 -DCLIENT -o gameclient.exe
+g++ -std=c++17 glew32.dll glfw3.dll src/opengl.c src/gameclient.cpp src/entity.cpp src/model.cpp src/world.cpp src/input.cpp src/system.cpp src/component.cpp -lopengl32 -lws2_32 -DCLIENT -g -o gameclient.exe

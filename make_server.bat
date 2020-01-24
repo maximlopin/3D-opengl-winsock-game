@@ -1,1 +1,1 @@
-g++ glew32.dll glfw3.dll src/opengl.c src/gameserver.cpp src/entity.cpp src/model.cpp src/world.cpp src/input.cpp src/system.cpp src/component.cpp -lopengl32 -lws2_32 -DSERVER -o gameserver.exe
+g++ -std=c++17 glew32.dll glfw3.dll src/opengl.c src/gameserver.cpp src/entity.cpp src/model.cpp src/world.cpp src/input.cpp src/system.cpp src/component.cpp -lopengl32 -lws2_32 -DSERVER -g -o gameserver.exe

@@ -5,7 +5,6 @@
 #include "world.h"
 #include <iostream>
 #include <thread>
-#include <mutex>
 #include "auth.h"
 #include "logging.h"
 #include "eclass.h"
@@ -43,6 +42,7 @@ void _main_data()
 
         int32_t einfo_offset = sizeof(num_ents);
         int32_t edata_offset = sizeof(num_ents) + num_ents * sizeof(int32_t) * 2;
+
 
         for (int i = 0; i < num_ents; i++)
         {
@@ -113,6 +113,7 @@ void _main_data()
                 WARNING("Received invalid EClass");
             }
         }
+
         // INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
     }
 }
@@ -137,6 +138,7 @@ void _main_input()
             running = false;
             return;
         }
+
 
         // INFO("Sent input: " << hero_ptr->m_input.cursor_theta);
 
@@ -220,6 +222,7 @@ int main()
         World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
         Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
         hero_ptr->m_input.cursor_theta = atan2l((x - cx), (y - cy));
+
     });
 
     glfwSetMouseButtonCallback(window, [](GLFWwindow* wnd, int key, int action, int mods) {
@@ -248,6 +251,7 @@ int main()
             default:
                 break;
         }
+
     }); 
 
     glfwSetWindowCloseCallback(window, [](GLFWwindow* wnd) {
