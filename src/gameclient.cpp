@@ -11,141 +11,6 @@
 
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
 
-#define SLEEP(t0, freq) \
-        double t1 = glfwGetTime(); \
-        double dt = (t1 - t0); \
-        double sleep_s = (1 / freq) - dt; \
-        double sleep_ms = 1000 * sleep_s; \
-        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(sleep_ms))); \
-
-const double INPUT_FREQ = 20.0;
-
-volatile bool running = true;
-SOCKET sock;
-World world;
-
-/* Receives entity data from server */
-void _main_data()
-{
-    int8_t buf[MAX_PACKET_SIZE];
-
-    while (running)
-    {
-        if (recv(sock, reinterpret_cast<char*>(buf), MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
-        {
-            SOCKET_ERR_MSG("Failed to receive data");
-            running = false;
-            return;
-        }
-
-        int32_t num_ents = *reinterpret_cast<int32_t*>(buf);
-
-        int32_t einfo_offset = sizeof(num_ents);
-        int32_t edata_offset = sizeof(num_ents) + num_ents * sizeof(int32_t) * 2;
-
-
-        for (int i = 0; i < num_ents; i++)
-        {
-            int32_t eclass = *reinterpret_cast<int32_t*>(buf + einfo_offset);
-            einfo_offset += sizeof(eclass);
-
-            int32_t id =  *reinterpret_cast<int32_t*>(buf + einfo_offset);
-            einfo_offset += sizeof(id);
-
-            // INFO("Entity (EClass = " << eclass << ", id = " << id << ")");
-
-            switch (eclass)
-            {
-                case EClass::ECLASS_HERO:
-                {
-                    Hero_e* hero_ptr = world.m_heroes.by_id(id);
-
-                    if (hero_ptr == nullptr)
-                    {
-                        Hero_e hero(id);
-                        hero.consume_buffer(buf + edata_offset);
-                        world.m_heroes.set(id, &hero);
-                        edata_offset += hero.get_buf_len();
-                    }
-                    else
-                    {
-                        hero_ptr->consume_buffer(buf + edata_offset);
-                        edata_offset += hero_ptr->get_buf_len();
-                    }
-                }
-                break;
-
-                case EClass::ECLASS_MONSTER:
-                {
-                    Monster_e* monster_ptr = world.m_monsters.by_id(id);
-                    if (monster_ptr == nullptr)
-                    {
-                        Monster_e monster(id);
-                        monster.consume_buffer(buf + edata_offset);
-                        world.m_monsters.set(id, &monster);
-                        edata_offset += monster.get_buf_len();
-                    }
-                    else
-                    {
-                        monster_ptr->consume_buffer(buf + edata_offset);
-                        edata_offset += monster_ptr->get_buf_len();
-                    }
-                }
-                break;
-
-                case EClass::ECLASS_DROPPED_ITEM:
-                {
-                    DroppedItem_e* item_ptr = world.m_dropped_items.by_id(id);
-                    if (item_ptr == nullptr)
-                    {
-                        DroppedItem_e item(id);
-                        item.consume_buffer(buf + edata_offset);
-                        world.m_dropped_items.set(id, &item);
-                        edata_offset += item.get_buf_len();
-                    }
-                    else
-                    {
-                        item_ptr->consume_buffer(buf + edata_offset);
-                        edata_offset += item_ptr->get_buf_len();
-                    }
-                }
-                break;
-                WARNING("Received invalid EClass");
-            }
-        }
-
-        // INFO("Received packet of size " << edata_offset << " (" << static_cast<int>(num_ents) << " entities)");
-    }
-}
-
-/* Sends input to server */
-void _main_input()
-{
-    sockaddr_in input_addr = SERVER_INPUT_ADDR;
-
-    int8_t buf[MAX_PACKET_SIZE];
-
-    while (running)
-    {
-        double t0 = glfwGetTime();
-
-        Hero_e* hero_ptr = world.m_heroes.by_index(0);
-        int32_t len = hero_ptr->fill_input_buffer(buf);
-
-        if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&input_addr), sizeof(sockaddr)) == SOCKET_ERROR)
-        {
-            SOCKET_ERR_MSG("Failed to send");
-            running = false;
-            return;
-        }
-
-
-        // INFO("Sent input: " << hero_ptr->m_input.cursor_theta);
-
-        SLEEP(t0, INPUT_FREQ);
-    }
-}
-
 int main()
 {
     WSADATA wsa;
@@ -155,7 +20,7 @@ int main()
         return 1;
     }
 
-    sock = socket(AF_INET, SOCK_DGRAM, 0);
+    SOCKET sock = socket(AF_INET, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET)
     {
         SOCKET_ERR_MSG("Failed to create socket");
@@ -180,6 +45,7 @@ int main()
     if (sendto(sock, blank_buf, 1, 0, reinterpret_cast<sockaddr*>(&auth_addr), sizeof(sockaddr)) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to connect (sendto)");
+        closesocket(sock);
         return 1;
     }
 
@@ -188,6 +54,7 @@ int main()
     if (recv(sock, reinterpret_cast<char*>(buf), sizeof(int32_t), 0) == SOCKET_ERROR)
     {
         SOCKET_ERR_MSG("Failed to connect (recv)");
+        closesocket(sock);
         return 1;
     }
 
@@ -197,13 +64,23 @@ int main()
     {
         INFO("Server returned ID = -1");
         closesocket(sock);
-        return 0;
+        return 1;
     }
 
     INFO("Connected with ID " << id);
 
+    u_long mode;
+    if (ioctlsocket(sock, FIONBIO, &mode) == SOCKET_ERROR)
+    {
+        SOCKET_ERR_MSG("Failed to set non-blocking mode");
+        closesocket(sock);
+        return 1;
+    }
+
     GLFWwindow* window = make_window(1280, 720, "My window");
     Model::init(1280, 720);
+
+    World world;
 
     glfwSetWindowUserPointer(window, (void*) &world);
 
@@ -212,62 +89,59 @@ int main()
         Model::update_perspective(w, h);
     });
 
-    glfwSetCursorPosCallback(window, [](GLFWwindow* wnd, double x, double y) {
-        int w, h;
-        glfwGetWindowSize(wnd, &w, &h);
+    // glfwSetCursorPosCallback(window, [](GLFWwindow* wnd, double x, double y) {
+    //     int w, h;
+    //     glfwGetWindowSize(wnd, &w, &h);
 
-        double cx = static_cast<double>(w) / 2;
-        double cy = static_cast<double>(h) / 2;
+    //     double cx = static_cast<double>(w) / 2;
+    //     double cy = static_cast<double>(h) / 2;
 
-        World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
-        Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
-        hero_ptr->m_input.cursor_theta = atan2l((x - cx), (y - cy));
+    //     World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
+    //     Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
+    //     hero_ptr->m_input.cursor_theta = atan2l((x - cx), (y - cy));
+    // });
 
-    });
+    // glfwSetMouseButtonCallback(window, [](GLFWwindow* wnd, int key, int action, int mods) {
+    //     bool state;
 
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* wnd, int key, int action, int mods) {
-        bool state;
+    //     World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
+    //     Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
 
-        World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
-        Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
-
-        if (action == GLFW_PRESS)
-            state = true;
-        else if (action == GLFW_RELEASE)
-            state = false;
-        else
-            return;
+    //     if (action == GLFW_PRESS)
+    //         state = true;
+    //     else if (action == GLFW_RELEASE)
+    //         state = false;
+    //     else
+    //         return;
         
-        switch (key)
-        {
-            case GLFW_MOUSE_BUTTON_LEFT:
-                hero_ptr->m_input.LM_PRESSED = state;
-                break;
+    //     switch (key)
+    //     {
+    //         case GLFW_MOUSE_BUTTON_LEFT:
+    //             hero_ptr->m_input.LM_PRESSED = state;
+    //             break;
 
-            case GLFW_MOUSE_BUTTON_RIGHT:
-                hero_ptr->m_input.RM_PRESSED = state;
-                break;
+    //         case GLFW_MOUSE_BUTTON_RIGHT:
+    //             hero_ptr->m_input.RM_PRESSED = state;
+    //             break;
 
-            default:
-                break;
-        }
-
-    }); 
+    //         default:
+    //             break;
+    //     }
+    // }); 
 
     glfwSetWindowCloseCallback(window, [](GLFWwindow* wnd) {
-        running = false;
+        glfwSetWindowShouldClose(wnd, 1);
     });
 
     Hero_e local_hero(id);
     world.m_heroes.set(id, &local_hero);
 
-    std::thread input_thread(_main_input);
-    std::thread data_thread(_main_data);
+    sockaddr_in input_addr = SERVER_INPUT_ADDR;
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_CULL_FACE);
 
-    while(running)
+    while(!glfwWindowShouldClose(window))
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -287,15 +161,122 @@ int main()
             pos[1] = hero_ptr->m_pos.pos[1];
             pos[2] = hero_ptr->m_pos.elevation;
 
+            printf("Rendering mesh at pos:, %f, %f, %f, origin: %f, %f, %f\n", pos[0], pos[1], pos[2], origin[0], origin[1], origin[2]);
             hero_ptr->m_mesh.render(origin, pos);
         }
 
         glfwSwapBuffers(window);
         glfwPollEvents();
-    }
+    
+        if (recv(sock, reinterpret_cast<char*>(buf), MAX_PACKET_SIZE, 0) == SOCKET_ERROR)
+        {
+            int error = WSAGetLastError();
 
-    input_thread.join();
-    data_thread.join();
+            if (error == WSAEWOULDBLOCK)
+            {
+                // Do nothing
+            }
+
+            else if (error == WSAEMSGSIZE)
+            {
+                INFO("Received packet exceeding MAX_PACKET_SIZE");
+            }
+
+            else
+            {
+                SOCKET_ERR_MSG("Error while receiving data");
+                closesocket(sock);
+                break;
+            }
+        }
+        else
+        {
+            int32_t num_ents = *reinterpret_cast<int32_t*>(buf);
+
+            int32_t einfo_offset = sizeof(num_ents);
+            int32_t edata_offset = sizeof(num_ents) + num_ents * sizeof(int32_t) * 2;
+
+            for (int i = 0; i < num_ents; i++)
+            {
+                int32_t eclass = *reinterpret_cast<int32_t*>(buf + einfo_offset);
+                einfo_offset += sizeof(eclass);
+
+                int32_t id =  *reinterpret_cast<int32_t*>(buf + einfo_offset);
+                einfo_offset += sizeof(id);
+
+                // INFO("Entity (EClass = " << eclass << ", id = " << id << ")");
+
+                switch (eclass)
+                {
+                    case EClass::ECLASS_HERO:
+                    {
+                        Hero_e* hero_ptr = world.m_heroes.by_id(id);
+
+                        if (hero_ptr == nullptr)
+                        {
+                            Hero_e hero(id);
+                            hero.consume_buffer(buf + edata_offset);
+                            world.m_heroes.set(id, &hero);
+                            edata_offset += hero.get_buf_len();
+                        }
+                        else
+                        {
+                            hero_ptr->consume_buffer(buf + edata_offset);
+                            edata_offset += hero_ptr->get_buf_len();
+                        }
+                    }
+                    break;
+
+                    case EClass::ECLASS_MONSTER:
+                    {
+                        Monster_e* monster_ptr = world.m_monsters.by_id(id);
+                        if (monster_ptr == nullptr)
+                        {
+                            Monster_e monster(id);
+                            monster.consume_buffer(buf + edata_offset);
+                            world.m_monsters.set(id, &monster);
+                            edata_offset += monster.get_buf_len();
+                        }
+                        else
+                        {
+                            monster_ptr->consume_buffer(buf + edata_offset);
+                            edata_offset += monster_ptr->get_buf_len();
+                        }
+                    }
+                    break;
+
+                    case EClass::ECLASS_DROPPED_ITEM:
+                    {
+                        DroppedItem_e* item_ptr = world.m_dropped_items.by_id(id);
+                        if (item_ptr == nullptr)
+                        {
+                            DroppedItem_e item(id);
+                            item.consume_buffer(buf + edata_offset);
+                            world.m_dropped_items.set(id, &item);
+                            edata_offset += item.get_buf_len();
+                        }
+                        else
+                        {
+                            item_ptr->consume_buffer(buf + edata_offset);
+                            edata_offset += item_ptr->get_buf_len();
+                        }
+                    }
+                    break;
+                    WARNING("Received invalid EClass");
+                }
+            }
+
+            Hero_e* hero_ptr = world.m_heroes.by_index(0);
+            int32_t len = hero_ptr->fill_input_buffer(buf);
+
+            if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&input_addr), sizeof(sockaddr)) == SOCKET_ERROR)
+            {
+                SOCKET_ERR_MSG("Failed to send");
+                closesocket(sock);
+                break;
+            }
+        }
+    }
 
     WSACleanup();
     glfwTerminate();
