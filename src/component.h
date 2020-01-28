@@ -40,4 +40,11 @@ struct TreeMesh_c : Mesh_c {
     Model* m_tree_model;
 };
 
+struct TerrainMesh_c : Mesh_c {
+    TerrainMesh_c();
+    ~TerrainMesh_c();
+    virtual void render(vec3 origin, vec3 pos) override;
+    Model* m_model;
+};
+
 #endif

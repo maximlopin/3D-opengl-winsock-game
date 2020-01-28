@@ -37,10 +37,6 @@ struct Sync_s : System_s {
     static int32_t s_edata_len;
 };
 
-struct Render_s : System_s {
-    virtual void render(vec3 origin) const = 0;
-};
-
 struct Tick_s : System_s {
     virtual void tick(double dt) = 0;
 };

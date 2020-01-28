@@ -10,6 +10,7 @@
 #include "cglm/cglm.h"
 #include "assert.h"
 #include <stdexcept>
+#include "logging.h"
 
 #define FLOATS_PER_VERTEX 6
 
@@ -19,6 +20,7 @@ public:
     Model(const char* path);
 
     static void init(int screen_width, int screen_height);
+    static void cleanup();
 
     static void update_perspective(int screen_width, int screen_height);
 

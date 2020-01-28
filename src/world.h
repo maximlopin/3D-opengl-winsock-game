@@ -32,6 +32,8 @@ struct World {
 #endif
 
 #ifdef CLIENT
+    TerrainMesh_c m_mesh;
+
     /* Sync */
     client_emap<Hero_e> m_heroes = client_emap<Hero_e>(MAX_ENTS_PER_CLASS);
     client_emap<Monster_e> m_monsters = client_emap<Monster_e>(MAX_ENTS_PER_CLASS);

@@ -23,3 +23,20 @@ void TreeMesh_c::render(vec3 origin, vec3 pos)
     /* Transform and render models */
     m_tree_model->render(origin, pos);
 }
+
+TerrainMesh_c::TerrainMesh_c()
+{
+    /* Create required models */
+    m_model = new Model("models/surface.ply.bin");
+}
+
+TerrainMesh_c::~TerrainMesh_c()
+{
+    delete m_model;
+}
+
+void TerrainMesh_c::render(vec3 origin, vec3 pos)
+{
+    /* Transform and render models */
+    m_model->render(origin, pos);
+}

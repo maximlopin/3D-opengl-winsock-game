@@ -29,6 +29,15 @@ void Model::init(int screen_width, int screen_height)
     update_perspective(screen_width, screen_height);
 }
 
+void Model::cleanup()
+{
+    glDetachShader(s_program, s_vertex_shader);
+    glDetachShader(s_program, s_fragment_shader);
+    glDeleteShader(s_vertex_shader);
+    glDeleteShader(s_fragment_shader);
+    glDeleteProgram(s_program);
+}
+
 Model::Model(const char* path)
 {
     uint32_t vertices_data_size;
@@ -121,11 +130,6 @@ Model::~Model()
     glDeleteVertexArrays(1, &m_vao);
     glDeleteBuffers(1, &m_vbo_elements);
     glDeleteBuffers(1, &m_vbo_indices);
-    glDetachShader(s_program, s_vertex_shader);
-    glDetachShader(s_program, s_fragment_shader);
-    glDeleteShader(s_vertex_shader);
-    glDeleteShader(s_fragment_shader);
-    glDeleteProgram(s_program);
 }
 
 void Model::render(vec3 origin, vec3 pos)

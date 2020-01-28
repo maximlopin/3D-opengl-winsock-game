@@ -12,7 +12,7 @@ int32_t Entity_e::get_id()
 
 Hero_e::Hero_e(int32_t id) : Entity_e(id)
 {
-
+    
 }
 
 void Hero_e::fill_buffer(int8_t* buf)

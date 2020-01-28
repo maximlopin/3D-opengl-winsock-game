@@ -186,6 +186,20 @@ struct client_emap {
         memcpy(&m_items[index], item_ptr, sizeof(T)); // use of deleted operator: m_items[index] = *item_ptr;
     }
 
+    /* 
+       Returns pointer to new empty location.
+       WARNING: this pointer must be used before
+       adding or removing items, because items
+       can change their locations in memory after
+       those operations.
+    */
+    T* allocate(int32_t id)
+    {
+        int32_t index = m_size++;
+        assign(index, id);
+        return &m_items[index];
+    }
+
     void del(int32_t id)
     {
         int32_t index = m_idtoi[id];

@@ -19,7 +19,7 @@
         if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(sleep_ms))); \
 
 /* Packets are sent with this frequency as well */
-const double TICK_FREQ = 20.0;
+const double TICK_FREQ = 10;
 
 volatile bool running = true;
 

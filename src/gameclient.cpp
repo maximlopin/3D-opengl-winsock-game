@@ -82,52 +82,10 @@ int main()
 
     World world;
 
-    glfwSetWindowUserPointer(window, (void*) &world);
-
     glfwSetWindowSizeCallback(window, [](GLFWwindow* wnd, int w, int h) {
         glViewport(0, 0, w, h);
         Model::update_perspective(w, h);
     });
-
-    // glfwSetCursorPosCallback(window, [](GLFWwindow* wnd, double x, double y) {
-    //     int w, h;
-    //     glfwGetWindowSize(wnd, &w, &h);
-
-    //     double cx = static_cast<double>(w) / 2;
-    //     double cy = static_cast<double>(h) / 2;
-
-    //     World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
-    //     Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
-    //     hero_ptr->m_input.cursor_theta = atan2l((x - cx), (y - cy));
-    // });
-
-    // glfwSetMouseButtonCallback(window, [](GLFWwindow* wnd, int key, int action, int mods) {
-    //     bool state;
-
-    //     World* world_ptr = reinterpret_cast<World*>(glfwGetWindowUserPointer(wnd));
-    //     Hero_e* hero_ptr = world_ptr->m_heroes.by_index(0);
-
-    //     if (action == GLFW_PRESS)
-    //         state = true;
-    //     else if (action == GLFW_RELEASE)
-    //         state = false;
-    //     else
-    //         return;
-        
-    //     switch (key)
-    //     {
-    //         case GLFW_MOUSE_BUTTON_LEFT:
-    //             hero_ptr->m_input.LM_PRESSED = state;
-    //             break;
-
-    //         case GLFW_MOUSE_BUTTON_RIGHT:
-    //             hero_ptr->m_input.RM_PRESSED = state;
-    //             break;
-
-    //         default:
-    //             break;
-    //     }
-    // }); 
 
     glfwSetWindowCloseCallback(window, [](GLFWwindow* wnd) {
         glfwSetWindowShouldClose(wnd, 1);
@@ -152,6 +110,9 @@ int main()
         origin[1] = local_hero_ptr->m_pos.pos[1];
         origin[2] = local_hero_ptr->m_pos.elevation;
 
+        vec3 world_pos = { 0.0, 0.0, 0.0 };
+        world.m_mesh.render(origin, world_pos);
+
         for (int i = 0; i < world.m_heroes.size(); i++)
         {
             Hero_e* hero_ptr = world.m_heroes.by_index(i);
@@ -161,7 +122,6 @@ int main()
             pos[1] = hero_ptr->m_pos.pos[1];
             pos[2] = hero_ptr->m_pos.elevation;
 
-            printf("Rendering mesh at pos:, %f, %f, %f, origin: %f, %f, %f\n", pos[0], pos[1], pos[2], origin[0], origin[1], origin[2]);
             hero_ptr->m_mesh.render(origin, pos);
         }
 
@@ -204,70 +164,46 @@ int main()
                 int32_t id =  *reinterpret_cast<int32_t*>(buf + einfo_offset);
                 einfo_offset += sizeof(id);
 
-                // INFO("Entity (EClass = " << eclass << ", id = " << id << ")");
+                Sync_s* sync_ptr = nullptr;
 
                 switch (eclass)
                 {
                     case EClass::ECLASS_HERO:
                     {
-                        Hero_e* hero_ptr = world.m_heroes.by_id(id);
-
-                        if (hero_ptr == nullptr)
+                        if ((sync_ptr = static_cast<Sync_s*>(world.m_heroes.by_id(id))) == nullptr)
                         {
-                            Hero_e hero(id);
-                            hero.consume_buffer(buf + edata_offset);
-                            world.m_heroes.set(id, &hero);
-                            edata_offset += hero.get_buf_len();
-                        }
-                        else
-                        {
-                            hero_ptr->consume_buffer(buf + edata_offset);
-                            edata_offset += hero_ptr->get_buf_len();
-                        }
-                    }
-                    break;
-
-                    case EClass::ECLASS_MONSTER:
-                    {
-                        Monster_e* monster_ptr = world.m_monsters.by_id(id);
-                        if (monster_ptr == nullptr)
-                        {
-                            Monster_e monster(id);
-                            monster.consume_buffer(buf + edata_offset);
-                            world.m_monsters.set(id, &monster);
-                            edata_offset += monster.get_buf_len();
-                        }
-                        else
-                        {
-                            monster_ptr->consume_buffer(buf + edata_offset);
-                            edata_offset += monster_ptr->get_buf_len();
-                        }
-                    }
-                    break;
-
-                    case EClass::ECLASS_DROPPED_ITEM:
-                    {
-                        DroppedItem_e* item_ptr = world.m_dropped_items.by_id(id);
-                        if (item_ptr == nullptr)
-                        {
-                            DroppedItem_e item(id);
-                            item.consume_buffer(buf + edata_offset);
-                            world.m_dropped_items.set(id, &item);
-                            edata_offset += item.get_buf_len();
-                        }
-                        else
-                        {
-                            item_ptr->consume_buffer(buf + edata_offset);
-                            edata_offset += item_ptr->get_buf_len();
+                            Hero_e* hero_ptr = world.m_heroes.allocate(id);
+                            new (hero_ptr) Hero_e(id);
+                            sync_ptr = static_cast<Sync_s*>(hero_ptr);
                         }
                     }
                     break;
                     WARNING("Received invalid EClass");
                 }
+
+                if (sync_ptr != nullptr)
+                {
+                    sync_ptr->consume_buffer(buf + edata_offset);
+                    edata_offset += sync_ptr->get_buf_len();
+                }
             }
 
             Hero_e* hero_ptr = world.m_heroes.by_index(0);
             int32_t len = hero_ptr->fill_input_buffer(buf);
+
+            int w, h;
+            glfwGetWindowSize(window, &w, &h);
+
+            double x, y;
+            glfwGetCursorPos(window, &x, &y);
+
+            double cx = static_cast<double>(w) / 2;
+            double cy = static_cast<double>(h) / 2;
+            
+            hero_ptr->m_input.cursor_theta = atan2l((x - cx), (y - cy));
+
+            hero_ptr->m_input.LM_PRESSED = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
+            hero_ptr->m_input.RM_PRESSED = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
 
             if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&input_addr), sizeof(sockaddr)) == SOCKET_ERROR)
             {
