@@ -214,6 +214,7 @@ int main()
         }
     }
 
+    Model::cleanup();
     WSACleanup();
     glfwTerminate();
 

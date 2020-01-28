@@ -7,16 +7,7 @@
 #include "auth.h"
 #include "logging.h"
 
-#define MAX_BUFFER ((2 << 15) - 1)
-
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
-
-#define SLEEP(t0, freq) \
-        double t1 = glfwGetTime(); \
-        double dt = (t1 - t0); \
-        double sleep_s = (1 / freq) - dt; \
-        double sleep_ms = 1000 * sleep_s; \
-        if (sleep_s > 0) std::this_thread::sleep_for(std::chrono::milliseconds(static_cast<long long>(sleep_ms))); \
 
 /* Packets are sent with this frequency as well */
 const double TICK_FREQ = 10;
@@ -45,7 +36,7 @@ void _main_auth()
         return;
     }
 
-    while (true)
+    while (running)
     {
         char buf[MAX_BUF_SIZE];
 
@@ -95,7 +86,7 @@ void _main_input()
 
     int8_t buf[MAX_PACKET_SIZE];
 
-    while (true)
+    while (running)
     {
         sockaddr_in from;
         int fromlen = sizeof(sockaddr);
