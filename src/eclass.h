@@ -5,9 +5,7 @@
 
 /* Must always be sequential */
 enum EClass {
-    ECLASS_HERO,
-    ECLASS_MONSTER,
-    ECLASS_DROPPED_ITEM
+    ECLASS_HERO
 };
 
 #endif

@@ -19,7 +19,7 @@ struct Position_c : Component_c {
     float distance_from(Position_c& pos_c);
 };
 
-struct Velocity_c : Component_c {
+struct Movement_c : Position_c {
     vec2 vel = { 0.0f };
     float min = 4.0f;
     float max = 8.0f;
@@ -27,7 +27,7 @@ struct Velocity_c : Component_c {
 
 /*
     A renderable 3D object without physics,
-    consisting of one or multiple transformed models
+    consisting of one or multiple transformed models.
 */
 struct Mesh_c : Component_c {
     virtual void render(vec3 origin, vec3 pos) = 0;

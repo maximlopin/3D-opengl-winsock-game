@@ -4,18 +4,17 @@
 #include <iostream>
 #include <thread>
 #include <mutex>
-#include "auth.h"
 #include "logging.h"
 
 #define SOCKET_ERR_MSG(msg); fprintf(stderr, "%s (%s) (error %i)\n", msg, __func__, WSAGetLastError());
 
 /* Packets are sent with this frequency as well */
-const double TICK_FREQ = 10;
+const double TICK_FREQ = 30;
 
 volatile bool running = true;
 
 World world;
-std::mutex world_mx;
+std::mutex world_mutex;
 
 /* Adds new players to world for new connections */
 void _main_auth()
@@ -50,11 +49,11 @@ void _main_auth()
             return;
         }
 
-        world_mx.lock();
+        world_mutex.lock();
         Player* player_ptr = Player::create(from, world);
 
         int32_t id = player_ptr == nullptr ? -1 : player_ptr->m_hero_id;
-        world_mx.unlock();
+        world_mutex.unlock();
         if (sendto(sock, reinterpret_cast<char*>(&id), sizeof(int32_t), 0, reinterpret_cast<sockaddr*>(&from), sizeof(sockaddr)) == SOCKET_ERROR)
         {
             SOCKET_ERR_MSG("Failed to send ID");
@@ -99,7 +98,7 @@ void _main_input()
         }
 
         std::string key = addr_to_string(from);
-        world_mx.lock();
+        world_mutex.lock();
         if (Player::s_players.find(key) != Player::s_players.end())
         {
             int32_t hero_id = Player::s_players[key]->m_hero_id;
@@ -112,7 +111,7 @@ void _main_input()
         {
             WARNING("Received input from an unconnected address");
         }
-        world_mx.unlock();
+        world_mutex.unlock();
     }
 }
 
@@ -131,7 +130,7 @@ void _main_game()
     {
         double t0 = glfwGetTime();
 
-        world_mx.lock();
+        world_mutex.lock();
 
         /* Tick */
         for (int i = 0; i < world.m_heroes.size(); i++)
@@ -142,7 +141,7 @@ void _main_game()
         /* Send packets */
         Player::distribute_packets(sock);
 
-        world_mx.unlock();    
+        world_mutex.unlock();    
 
         long long sleep_ms = static_cast<long long>(1000 * (1.0 / TICK_FREQ - dt));
         std::this_thread::sleep_for(std::chrono::milliseconds(sleep_ms));

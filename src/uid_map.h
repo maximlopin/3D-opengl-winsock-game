@@ -253,4 +253,12 @@ struct client_emap {
     T* m_items;
 };
 
+#ifdef SERVER
+    #define EMAP server_emap
+#endif
+
+#ifdef CLIENT
+    #define EMAP client_emap
+#endif
+
 #endif

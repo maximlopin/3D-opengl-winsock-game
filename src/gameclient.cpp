@@ -5,7 +5,6 @@
 #include "world.h"
 #include <iostream>
 #include <thread>
-#include "auth.h"
 #include "logging.h"
 #include "eclass.h"
 
@@ -106,9 +105,9 @@ int main()
         Hero_e* local_hero_ptr = world.m_heroes.by_index(0);
 
         vec3 origin;
-        origin[0] = local_hero_ptr->m_pos.pos[0];
-        origin[1] = local_hero_ptr->m_pos.pos[1];
-        origin[2] = local_hero_ptr->m_pos.elevation;
+        origin[0] = local_hero_ptr->m_mov.pos[0];
+        origin[1] = local_hero_ptr->m_mov.pos[1];
+        origin[2] = local_hero_ptr->m_mov.elevation;
 
         vec3 world_pos = { 0.0, 0.0, 0.0 };
         world.m_mesh.render(origin, world_pos);
@@ -118,9 +117,9 @@ int main()
             Hero_e* hero_ptr = world.m_heroes.by_index(i);
 
             vec3 pos;
-            pos[0] = hero_ptr->m_pos.pos[0];
-            pos[1] = hero_ptr->m_pos.pos[1];
-            pos[2] = hero_ptr->m_pos.elevation;
+            pos[0] = hero_ptr->m_mov.pos[0];
+            pos[1] = hero_ptr->m_mov.pos[1];
+            pos[2] = hero_ptr->m_mov.elevation;
 
             hero_ptr->m_mesh.render(origin, pos);
         }
@@ -204,6 +203,17 @@ int main()
 
             hero_ptr->m_input.LM_PRESSED = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT);
             hero_ptr->m_input.RM_PRESSED = glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_RIGHT);
+
+            hero_ptr->m_input.NUM1_PRESSED = glfwGetMouseButton(window, GLFW_KEY_1);
+            hero_ptr->m_input.NUM2_PRESSED = glfwGetMouseButton(window, GLFW_KEY_2);
+            hero_ptr->m_input.NUM3_PRESSED = glfwGetMouseButton(window, GLFW_KEY_3);
+            hero_ptr->m_input.NUM4_PRESSED = glfwGetMouseButton(window, GLFW_KEY_4);
+            hero_ptr->m_input.NUM5_PRESSED = glfwGetMouseButton(window, GLFW_KEY_5);
+            hero_ptr->m_input.NUM6_PRESSED = glfwGetMouseButton(window, GLFW_KEY_6);
+            hero_ptr->m_input.NUM7_PRESSED = glfwGetMouseButton(window, GLFW_KEY_7);
+            hero_ptr->m_input.NUM8_PRESSED = glfwGetMouseButton(window, GLFW_KEY_8);
+            hero_ptr->m_input.NUM9_PRESSED = glfwGetMouseButton(window, GLFW_KEY_9);
+            hero_ptr->m_input.NUM0_PRESSED = glfwGetMouseButton(window, GLFW_KEY_0);
 
             if (sendto(sock, reinterpret_cast<char*>(buf), len, 0, reinterpret_cast<sockaddr*>(&input_addr), sizeof(sockaddr)) == SOCKET_ERROR)
             {
